@@ -42,7 +42,10 @@ def habitat_factor(s: dict[str, Any], cfg: dict[str, Any]) -> FactorResult:
     ]
     if recent is not None:
         y0, y1 = lc["change_years"]
-        ev.append(f"{_pct(recent)} went from forest to brush or open ground between {y0} and {y1}, most likely logging.")
+        if recent >= 0.01:
+            ev.append(f"{_pct(recent)} went from forest to brush or open ground between {y0} and {y1}, most likely logging.")
+        else:
+            ev.append(f"No new cutting picked up between {y0} and {y1}; the regrowth here is older.")
     ev += [
         f"Forest: {_pct(lc['forest'])}, about {_pct(lc['conifer_share_of_forest'])} of it softwood or mixed.",
         f"Forest-to-opening edge: {lc['edge_m_per_ha']:.0f} m per hectare.",

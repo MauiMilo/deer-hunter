@@ -84,7 +84,8 @@ def score_spot(
     if edge_m is not None:
         if edge_m <= 150:
             score += 15
-            why.append(f"Within {edge_m:.0f} m of a forest/opening edge: food and cover meet close by.")
+            where = "Right on a forest/opening edge" if edge_m < 30 else f"Within {edge_m:.0f} m of a forest/opening edge"
+            why.append(f"{where}: food and cover meet close by.")
         elif edge_m <= 300:
             score += 8
             why.append(f"About {edge_m:.0f} m from a forest/opening edge.")
