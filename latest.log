@@ -1,4 +1,12 @@
 INFO tracts in region: 719
-INFO starting USGS NLCD land cover (peak memory so far 190 MB)
-INFO finished USGS NLCD land cover (peak memory 342 MB)
-INFO starting Roads and trails (peak memory so far 342 MB)
+INFO starting USGS NLCD land cover (peak memory so far 186 MB)
+INFO finished USGS NLCD land cover (peak memory 355 MB)
+INFO starting Roads and trails (peak memory so far 355 MB)
+INFO DOT roads: 6717 segments in 2s
+INFO OpenStreetMap: 7025 ways in 13s
+INFO trails: 3208 lines in 3s
+INFO road network indexed and distance grid built in 1s (peak memory 750 MB)
+INFO road signals for 993 units in 2s
+INFO finished Roads and trails (peak memory 750 MB)
+INFO starting USGS 3DEP elevation (peak memory so far 750 MB)
+INFO terrain tile 1: 3 units, 140 features, peak memory 750 MB
