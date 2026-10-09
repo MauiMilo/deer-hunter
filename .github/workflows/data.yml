@@ -50,6 +50,18 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          # Push the log so far to the run-logs branch every 2 minutes, so a run that dies
+          # (for example out of memory) still leaves a trail.
+          git config --global user.name "deer-scout-data-bot"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          (git fetch -q origin run-logs && git worktree add -q /tmp/logs origin/run-logs) || (git worktree add -q --detach /tmp/logs && cd /tmp/logs && git checkout -q --orphan run-logs-new && git rm -rfq . || true)
+          (
+            while sleep 120; do
+              cp run.log /tmp/logs/latest.log 2>/dev/null || continue
+              free -m > /tmp/logs/memory.txt 2>/dev/null || true
+              (cd /tmp/logs && git add latest.log memory.txt && git commit -qm "Checkpoint ${{ github.run_id }}" && git push -qf origin HEAD:run-logs) || true
+            done
+          ) &
           python -m deerscout.build --region "${{ github.event.inputs.region || 'coos' }}" 2>&1 | tee run.log
       - name: Keep raw downloads for debugging
         if: always()

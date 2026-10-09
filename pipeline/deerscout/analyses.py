@@ -164,55 +164,57 @@ def run_roads(ctx: Context) -> None:
 
 
 def run_terrain(ctx: Context) -> None:
+    """Fixed-size elevation tiles (core + margin). Units crossing tiles gather samples from each."""
     sel = ctx.units_ea[ctx.units_ea["id"].isin(ctx.analyze_ids)].reset_index(drop=True)
-    reps = sel.geometry.representative_point()
+    tree = shapely.STRtree(list(sel.geometry.values))
     tiles = terrain.tile_grid(analysis_bounds(ctx, pad=0), TILE_M)
     dem_cache = ctx.cache_dir / "dem"
-    done_units = 0
+    margin = 600.0
+    samples: dict[int, list[dict[str, Any]]] = {}
+    feats_by_unit: dict[int, list[terrain.Feature]] = {}
     n_tiles = 0
-    feature_counts = {"saddle": 0, "bench": 0}
     for core in tiles:
-        inside = [(i, g) for i, (g, p) in enumerate(zip(sel.geometry, reps)) if core[0] <= p.x < core[2] and core[1] <= p.y < core[3]]
-        if not inside:
+        core_box = shapely.box(*core)
+        hits = tree.query(core_box, predicate="intersects")
+        if len(hits) == 0:
             continue
-        bx = np.array([g.bounds for _, g in inside])
-        b = (
-            min(core[0], bx[:, 0].min()) - 300,
-            min(core[1], bx[:, 1].min()) - 300,
-            max(core[2], bx[:, 2].max()) + 300,
-            max(core[3], bx[:, 3].max()) + 300,
-        )
+        b = (core[0] - margin, core[1] - margin, core[2] + margin, core[3] + margin)
         dem = terrain.fetch_dem(ctx.session, b, res_m=DEM_RES_M, cache_dir=dem_cache)
         layers = terrain.derive(dem)
-        feats = terrain.find_features(dem, layers)
-        n_tiles += 1
-        tree = shapely.STRtree([g for _, g in inside])
-        per_unit: dict[int, list[terrain.Feature]] = {}
+        feats = [f for f in terrain.find_features(dem, layers) if core[0] <= f.x < core[2] and core[1] <= f.y < core[3]]
+        for j in hits:
+            part = terrain.unit_samples(dem, layers, sel.geometry.iloc[int(j)], core=core)
+            if part:
+                samples.setdefault(int(j), []).append(part)
         for f in feats:
-            pt = shapely.Point(f.x, f.y)
-            for j in tree.query(pt, predicate="within"):
-                per_unit.setdefault(int(j), []).append(f)
-        for j, (i, geom) in enumerate(inside):
-            uid = sel.loc[i, "id"]
-            stats = terrain.unit_signals(dem, layers, geom)
-            if not stats:
-                continue
-            fs = per_unit.get(j, [])
-            s = ctx.sig(uid)
-            s["terrain"] = stats
-            s["saddles"] = sum(f.kind == "saddle" for f in fs)
-            s["benches"] = sum(f.kind == "bench" for f in fs)
-            feature_counts["saddle"] += s["saddles"]
-            feature_counts["bench"] += s["benches"]
-            done_units += 1
-            ctx.spots.extend(make_spots(ctx, uid, sel.loc[i, "property_id"], geom, fs))
-        log.info("terrain tile %d: %d units, %d features", n_tiles, len(inside), len(feats))
+            for j in tree.query(shapely.Point(f.x, f.y), predicate="within"):
+                feats_by_unit.setdefault(int(j), []).append(f)
+        n_tiles += 1
+        del dem, layers
+        log.info("terrain tile %d: %d units, %d features, peak memory %.0f MB", n_tiles, len(hits), len(feats), mem_mb())
+
+    feature_counts = {"saddle": 0, "bench": 0}
+    done = 0
+    for j, parts in samples.items():
+        stats = terrain.finalize_samples(parts, DEM_RES_M)
+        if not stats:
+            continue
+        uid = sel.loc[j, "id"]
+        fs = feats_by_unit.get(j, [])
+        s = ctx.sig(uid)
+        s["terrain"] = stats
+        s["saddles"] = sum(f.kind == "saddle" for f in fs)
+        s["benches"] = sum(f.kind == "bench" for f in fs)
+        feature_counts["saddle"] += s["saddles"]
+        feature_counts["bench"] += s["benches"]
+        done += 1
+        ctx.spots.extend(make_spots(ctx, uid, sel.loc[j, "property_id"], sel.geometry.iloc[j], fs))
     ctx.record(
         terrain.SOURCE,
         "ok",
         url=terrain.IMAGE_SERVER,
         tiles=n_tiles,
-        units=done_units,
+        units=done,
         resolution_m=DEM_RES_M,
         features=feature_counts,
         spots=len(ctx.spots),

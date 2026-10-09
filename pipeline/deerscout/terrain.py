@@ -132,7 +132,7 @@ class TerrainLayers:
 
 def derive(dem: Dem, smooth_m: float = 10.0) -> TerrainLayers:
     r = dem.res
-    z = _fill(dem.z.astype(np.float64))
+    z = _fill(dem.z.astype(np.float32))
     zs = ndimage.gaussian_filter(z, sigma=max(0.5, smooth_m / r))
     dzdy, dzdx = np.gradient(zs, r)  # rows increase southward
     dzdn = -dzdy  # northward gradient
@@ -218,33 +218,70 @@ def find_features(dem: Dem, t: TerrainLayers) -> list[Feature]:
     return feats
 
 
-def unit_signals(dem: Dem, t: TerrainLayers, geom_5070) -> dict[str, Any] | None:
-    minx, miny, maxx, maxy = geom_5070.bounds
+def unit_samples(dem: Dem, t: TerrainLayers, geom_5070, core: tuple[float, float, float, float] | None = None) -> dict[str, np.ndarray] | None:
+    """Pixel values of a unit inside this tile (optionally only inside the tile's core area).
+
+    Units that cross tiles collect samples from each tile; `finalize_samples` turns them into stats.
+    """
+    g = geom_5070
+    if core is not None:
+        from shapely.geometry import box
+
+        g = g.intersection(box(*core))
+        if g.is_empty:
+            return None
+    minx, miny, maxx, maxy = g.bounds
     bx = dem.bounds
-    if minx < bx[0] or miny < bx[1] or maxx > bx[2] or maxy > bx[3]:
-        return None  # unit not fully inside this tile
+    minx, miny, maxx, maxy = max(minx, bx[0]), max(miny, bx[1]), min(maxx, bx[2]), min(maxy, bx[3])
+    if minx >= maxx or miny >= maxy:
+        return None
     inv = ~dem.transform
     c0, r0 = inv @ (minx, maxy)
     c1, r1 = inv @ (maxx, miny)
     r0, c0 = max(0, int(r0)), max(0, int(c0))
-    r1, c1 = int(math.ceil(r1)), int(math.ceil(c1))
+    r1 = min(dem.z.shape[0], int(math.ceil(r1)))
+    c1 = min(dem.z.shape[1], int(math.ceil(c1)))
+    if r1 <= r0 or c1 <= c0:
+        return None
     sl = (slice(r0, r1), slice(c0, c1))
     tr = dem.transform @ Affine.translation(c0, r0)
-    inside = geometry_mask([geom_5070], out_shape=dem.z[sl].shape, transform=tr, invert=True)
-    z = dem.z[sl][inside]
-    s = t.slope_deg[sl][inside]
+    inside = geometry_mask([g], out_shape=dem.z[sl].shape, transform=tr, invert=True)
+    if not inside.any():
+        return None
+    sd_l = float(np.nanstd(t.tpi_large) or 1.0)
+    return {
+        "z": dem.z[sl][inside].astype(np.float32),
+        "slope": t.slope_deg[sl][inside].astype(np.float32),
+        "tpi_rel": (t.tpi_large[sl][inside] / sd_l).astype(np.float32),
+    }
+
+
+def finalize_samples(parts: list[dict[str, np.ndarray]], res: float) -> dict[str, Any] | None:
+    if not parts:
+        return None
+    z = np.concatenate([p["z"] for p in parts])
+    s = np.concatenate([p["slope"] for p in parts])
+    tl = np.concatenate([p["tpi_rel"] for p in parts])
     if z.size < 20 or np.isnan(z).mean() > 0.3:
         return None
-    tl = t.tpi_large[sl][inside]
-    sd_l = np.nanstd(t.tpi_large) or 1.0
     return {
-        "dem_res_m": dem.res,
+        "dem_res_m": res,
         "elev_min_m": round(float(np.nanmin(z)), 1),
         "elev_max_m": round(float(np.nanmax(z)), 1),
         "relief_m": round(float(np.nanpercentile(z, 95) - np.nanpercentile(z, 5)), 1),
         "mean_slope_deg": round(float(np.nanmean(s)), 1),
         "steep_share": round(float(np.nanmean(s > 30)), 4),
         "gentle_share": round(float(np.nanmean(s < 8)), 4),
-        "ridge_share": round(float(np.nanmean(tl > sd_l)), 4),
-        "valley_share": round(float(np.nanmean(tl < -sd_l)), 4),
+        "ridge_share": round(float(np.nanmean(tl > 1)), 4),
+        "valley_share": round(float(np.nanmean(tl < -1)), 4),
     }
+
+
+def unit_signals(dem: Dem, t: TerrainLayers, geom_5070) -> dict[str, Any] | None:
+    """Stats for a unit that lies within one tile (convenience wrapper)."""
+    minx, miny, maxx, maxy = geom_5070.bounds
+    bx = dem.bounds
+    if minx < bx[0] or miny < bx[1] or maxx > bx[2] or maxy > bx[3]:
+        return None
+    part = unit_samples(dem, t, geom_5070)
+    return finalize_samples([part] if part else [], dem.res)
