@@ -9,6 +9,7 @@ import json
 import logging
 import math
 import os
+import time
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,7 +23,7 @@ from pyproj import Transformer
 
 from . import landcover, roads, spots, terrain, windhistory
 from .config import EQUAL_AREA, WGS84
-from .http import Session
+from .http import Session, SourceError
 
 log = logging.getLogger("deerscout")
 _TO_WGS = Transformer.from_crs(EQUAL_AREA, WGS84, always_xy=True)
@@ -190,15 +191,26 @@ def run_terrain(ctx: Context) -> None:
     samples: dict[int, list[dict[str, Any]]] = {}
     feats_by_unit: dict[int, list[terrain.Feature]] = {}
     n_tiles = 0
+    failed_tiles = 0
     for core in tiles:
         core_box = shapely.box(*core)
         hits = tree.query(core_box, predicate="intersects")
         if len(hits) == 0:
             continue
         b = (core[0] - margin, core[1] - margin, core[2] + margin, core[3] + margin)
-        dem = terrain.fetch_dem(ctx.session, b, res_m=DEM_RES_M, cache_dir=dem_cache)
+        t0 = time.time()
+        try:
+            dem = terrain.fetch_dem(ctx.session, b, res_m=DEM_RES_M, cache_dir=dem_cache)
+        except SourceError as e:
+            failed_tiles += 1
+            log.error("terrain tile at %s skipped: %s", core[:2], e.message)
+            if failed_tiles > max(5, len(tiles) // 4):
+                raise
+            continue
+        t1 = time.time()
         layers = terrain.derive(dem)
         feats = [f for f in terrain.find_features(dem, layers) if core[0] <= f.x < core[2] and core[1] <= f.y < core[3]]
+        t2 = time.time()
         for j in hits:
             part = terrain.unit_samples(dem, layers, sel.geometry.iloc[int(j)], core=core)
             if part:
@@ -208,7 +220,10 @@ def run_terrain(ctx: Context) -> None:
                 feats_by_unit.setdefault(int(j), []).append(f)
         n_tiles += 1
         del dem, layers
-        log.info("terrain tile %d: %d units, %d features, peak memory %.0f MB", n_tiles, len(hits), len(feats), mem_mb())
+        log.info(
+            "terrain tile %d: %d units, %d features (download %.0fs, analysis %.0fs, peak memory %.0f MB)",
+            n_tiles, len(hits), len(feats), t1 - t0, t2 - t1, mem_mb(),
+        )
 
     feature_counts = {"saddle": 0, "bench": 0}
     done = 0
@@ -231,6 +246,7 @@ def run_terrain(ctx: Context) -> None:
         "ok",
         url=terrain.IMAGE_SERVER,
         tiles=n_tiles,
+        failed_tiles=failed_tiles,
         units=done,
         resolution_m=DEM_RES_M,
         features=feature_counts,

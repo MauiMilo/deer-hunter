@@ -194,3 +194,23 @@ def test_distance_grid_matches_vector_shares():
     grid = roads.unit_signals(net, box(0, 0, 2000, 2000))
     assert grid["share_near_road"] == pytest.approx(vec["share_near_road"], abs=0.02)
     assert grid["share_interior"] == pytest.approx(vec["share_interior"], abs=0.02)
+
+
+def test_random_bumpy_ground_yields_few_features():
+    from scipy import ndimage as ndi
+
+    rng = np.random.default_rng(0)
+    n = 600
+    z = 500 + ndi.gaussian_filter(rng.normal(size=(n, n)), 8) * 40  # small random bumps, ~1-2 m
+    dem = terrain.Dem(z.astype(np.float32), from_origin(0, n * 6, 6, 6), 6.0)
+    feats = terrain.find_features(dem, terrain.derive(dem))
+    assert len(feats) <= 3
+
+
+def test_prominence_checks():
+    dem = dem_from(ridge_with_saddle)
+    t = terrain.derive(dem)
+    c = dem.z.shape[1] // 2
+    # center of the test grid is the saddle; ridge runs east-west (90 degrees)
+    assert terrain.is_prominent_saddle(t.z_smooth, dem.z.shape[0] // 2, c, 90.0, RES)
+    assert not terrain.is_prominent_saddle(t.z_smooth, dem.z.shape[0] // 2, c, 0.0, RES)

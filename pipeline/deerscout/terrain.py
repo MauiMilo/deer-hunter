@@ -58,47 +58,65 @@ def tile_grid(bounds, tile_m: float) -> list[tuple[float, float, float, float]]:
     return out
 
 
+def _fetch_chunk(session: Session, b: tuple[float, float, float, float], w: int, h: int) -> np.ndarray:
+    params = {
+        "bbox": f"{b[0]},{b[1]},{b[2]},{b[3]}",
+        "bboxSR": 5070,
+        "imageSR": 5070,
+        "size": f"{w},{h}",
+        "format": "tiff",
+        "pixelType": "F32",
+        "noData": NODATA,
+        "noDataInterpretation": "esriNoDataMatchAny",
+        "interpolation": "RSP_BilinearInterpolation",
+        "renderingRule": '{"rasterFunction":"None"}',
+        "f": "image",
+    }
+    # The elevation service sometimes answers 502/503 under load; back off and retry patiently.
+    body, ctype = get_bytes(
+        session, IMAGE_SERVER, params, source=SOURCE, timeout=180, retries=5, backoff=5.0, max_bytes=8 * w * h + 1_000_000
+    )
+    if body[:4] not in (b"II*\x00", b"MM\x00*"):
+        raise SourceError(SOURCE, f"expected a TIFF, got {ctype}: {body[:200]!r}")
+    with rasterio.io.MemoryFile(io.BytesIO(body)) as mf, mf.open() as ds:
+        arr = ds.read(1).astype(np.float32)
+        nd = ds.nodata
+    if arr.shape != (h, w):
+        raise SourceError(SOURCE, f"expected {w}x{h} pixels, got {arr.shape[1]}x{arr.shape[0]}")
+    if nd is not None:
+        arr[arr == nd] = np.nan
+    return arr
+
+
 def fetch_dem(
     session: Session,
     bounds_5070: tuple[float, float, float, float],
     res_m: float = 5.0,
     cache_dir: Path | None = None,
+    chunk_px: int = 800,
 ) -> Dem:
+    """Elevation for a box, requested in chunks of at most chunk_px square and stitched together."""
     minx, miny, maxx, maxy = bounds_5070
     w = int(round((maxx - minx) / res_m))
     h = int(round((maxy - miny) / res_m))
     if w > 8000 or h > 8000:
         raise ValueError("tile too large for the elevation service (8000 px max)")
     key = hashlib.sha1(f"{bounds_5070}|{res_m}".encode()).hexdigest()[:16]
-    cached = cache_dir / f"dem_{key}.tif" if cache_dir else None
+    cached = cache_dir / f"dem_{key}.npy" if cache_dir else None
     if cached and cached.exists():
-        body = cached.read_bytes()
+        z = np.load(cached)
     else:
-        params = {
-            "bbox": f"{minx},{miny},{maxx},{maxy}",
-            "bboxSR": 5070,
-            "imageSR": 5070,
-            "size": f"{w},{h}",
-            "format": "tiff",
-            "pixelType": "F32",
-            "noData": NODATA,
-            "noDataInterpretation": "esriNoDataMatchAny",
-            "interpolation": "RSP_BilinearInterpolation",
-            "renderingRule": '{"rasterFunction":"None"}',
-            "f": "image",
-        }
-        body, ctype = get_bytes(session, IMAGE_SERVER, params, source=SOURCE, timeout=300, max_bytes=8 * w * h + 1_000_000)
-        if body[:4] not in (b"II*\x00", b"MM\x00*"):
-            raise SourceError(SOURCE, f"expected a TIFF, got {ctype}: {body[:200]!r}")
+        z = np.full((h, w), np.nan, dtype=np.float32)
+        for r0 in range(0, h, chunk_px):
+            for c0 in range(0, w, chunk_px):
+                hh, ww = min(chunk_px, h - r0), min(chunk_px, w - c0)
+                cb = (minx + c0 * res_m, maxy - (r0 + hh) * res_m, minx + (c0 + ww) * res_m, maxy - r0 * res_m)
+                z[r0 : r0 + hh, c0 : c0 + ww] = _fetch_chunk(session, cb, ww, hh)
         if cached:
             cached.parent.mkdir(parents=True, exist_ok=True)
-            cached.write_bytes(body)
-    with rasterio.io.MemoryFile(io.BytesIO(body)) as mf, mf.open() as ds:
-        z = ds.read(1).astype(np.float32)
-        nd = ds.nodata
+            np.save(cached, z)
+    z = z.copy()
     z[(z <= -1000) | (z > 9000)] = np.nan
-    if nd is not None:
-        z[z == nd] = np.nan
     if np.isnan(z).mean() > 0.5:
         raise SourceError(SOURCE, "elevation tile is mostly empty")
     return Dem(z, from_origin(minx, maxy, res_m, res_m), res_m)
@@ -128,6 +146,7 @@ class TerrainLayers:
     hess_det: np.ndarray  # determinant of the elevation surface's curvature (negative = saddle-shaped)
     ridge_axis_deg: np.ndarray  # direction of upward curvature at each cell
     res: float
+    z_smooth: np.ndarray | None = None  # lightly smoothed elevation, for prominence checks
 
 
 def derive(dem: Dem, smooth_m: float = 10.0) -> TerrainLayers:
@@ -158,7 +177,7 @@ def derive(dem: Dem, smooth_m: float = 10.0) -> TerrainLayers:
     nan = np.isnan(dem.z)
     for arr in (slope, aspect, tpi_s, tpi_l, det, bearing):
         arr[nan] = np.nan
-    return TerrainLayers(slope, aspect, tpi_s, tpi_l, det, bearing, r)
+    return TerrainLayers(slope, aspect, tpi_s, tpi_l, det, bearing, r, zs.astype(np.float32))
 
 
 # ---------------------------------------------------------------- features
@@ -174,6 +193,40 @@ class Feature:
     area_m2: float
     travel_axis_deg: float  # likely direction of travel through/along the feature (0-180)
     notes: list[str] = field(default_factory=list)
+
+
+SADDLE_PROMINENCE_M = 6.0  # ground must rise this much along the ridge and fall across it, both ways
+SADDLE_REACH_M = 150.0
+BENCH_STEP_M = 10.0  # a bench must have this much climb above and drop below it
+BENCH_REACH_M = 100.0
+
+
+def _rise(z: np.ndarray, r: int, c: int, bearing_deg: float, dist_m: float, res: float) -> float | None:
+    """Elevation change from (r, c) to the point dist_m away on a compass bearing (NaN-safe)."""
+    b = math.radians(bearing_deg)
+    dc = math.sin(b) * dist_m / res
+    dr = -math.cos(b) * dist_m / res
+    rr, cc = int(round(r + dr)), int(round(c + dc))
+    if not (0 <= rr < z.shape[0] and 0 <= cc < z.shape[1]):
+        return None
+    v = z[rr, cc] - z[r, c]
+    return None if np.isnan(v) else float(v)
+
+
+def is_prominent_saddle(z: np.ndarray, r: int, c: int, ridge_axis_deg: float, res: float) -> bool:
+    along = [_rise(z, r, c, ridge_axis_deg + k, SADDLE_REACH_M, res) for k in (0, 180)]
+    across = [_rise(z, r, c, ridge_axis_deg + k, SADDLE_REACH_M, res) for k in (90, 270)]
+    if any(v is None for v in along + across):
+        return False
+    return min(along) >= SADDLE_PROMINENCE_M and max(across) <= -SADDLE_PROMINENCE_M
+
+
+def is_true_bench(z: np.ndarray, r: int, c: int, downslope_deg: float, res: float) -> bool:
+    down = _rise(z, r, c, downslope_deg, BENCH_REACH_M, res)
+    up = _rise(z, r, c, downslope_deg + 180, BENCH_REACH_M, res)
+    if down is None or up is None:
+        return False
+    return down <= -BENCH_STEP_M and up >= BENCH_STEP_M
 
 
 def find_features(dem: Dem, t: TerrainLayers) -> list[Feature]:
@@ -193,18 +246,26 @@ def find_features(dem: Dem, t: TerrainLayers) -> list[Feature]:
         lab, n = ndimage.label(mask)
         if n == 0:
             continue
-        idx = np.arange(1, n + 1)
-        counts = ndimage.sum(mask, lab, idx)
-        for k, cnt in zip(idx, counts):
-            area = float(cnt) * r * r
+        for k, sl in enumerate(ndimage.find_objects(lab), start=1):
+            if sl is None:
+                continue
+            sub = lab[sl] == k
+            area = float(sub.sum()) * r * r
             if area < min_m2:
                 continue
-            rows, cols = np.nonzero(lab == k)
+            rows, cols = np.nonzero(sub)
+            rows = rows + sl[0].start
+            cols = cols + sl[1].start
             if kind == "saddle":
                 pick = np.argmin(t.hess_det[rows, cols])
             else:
                 pick = np.argmin(t.slope_deg[rows, cols])
             rr, cc = int(rows[pick]), int(cols[pick])
+            zs = t.z_smooth if t.z_smooth is not None else dem.z
+            if kind == "saddle" and not is_prominent_saddle(zs, rr, cc, float(t.ridge_axis_deg[rr, cc]), r):
+                continue
+            if kind == "bench" and not is_true_bench(zs, rr, cc, float(np.nanmedian(t.aspect_deg[rows, cols])), r):
+                continue
             x, y = dem.transform @ (cc + 0.5, rr + 0.5)
             if kind == "saddle":
                 axis = (float(t.ridge_axis_deg[rr, cc]) + 90.0) % 180.0  # travel crosses the ridge
