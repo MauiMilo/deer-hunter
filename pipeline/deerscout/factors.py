@@ -24,6 +24,10 @@ def habitat_factor(s: dict[str, Any], cfg: dict[str, Any]) -> FactorResult:
     sh = lc["lc_shares"]
     food = lc["food_openings"]
     food_sc = ramp(food, c["food_low"], c["food_good"]) * (1 - 0.6 * ramp(food, c["open_too_much"], c["open_max"]))
+    recent = lc.get("recent_opening_share")
+    if recent is not None:
+        # Fresh cuts grow the most browse; give them extra weight within the food part.
+        food_sc = min(1.0, food_sc + 0.5 * ramp(recent, 0.0, c["recent_cut_good"]))
     cover_sc = ramp(lc["forest"], c["forest_low"], c["forest_good"])
     edge_sc = ramp(lc["edge_m_per_ha"], c["edge_low"], c["edge_good"])
     conifer_sc = ramp(lc["conifer_share_of_forest"], c["conifer_low"], c["conifer_good"])
@@ -35,6 +39,11 @@ def habitat_factor(s: dict[str, Any], cfg: dict[str, Any]) -> FactorResult:
 
     ev = [
         f"Young regrowth, brush and openings: {_pct(food)} (regrowth/brush {_pct(sh['young'])}, grass {_pct(sh['herbaceous'])}, fields {_pct(sh['agriculture'])}).",
+    ]
+    if recent is not None:
+        y0, y1 = lc["change_years"]
+        ev.append(f"{_pct(recent)} went from forest to brush or open ground between {y0} and {y1}, most likely logging.")
+    ev += [
         f"Forest: {_pct(lc['forest'])}, about {_pct(lc['conifer_share_of_forest'])} of it softwood or mixed.",
         f"Forest-to-opening edge: {lc['edge_m_per_ha']:.0f} m per hectare.",
     ]

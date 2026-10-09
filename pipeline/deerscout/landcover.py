@@ -84,6 +84,8 @@ class LandCover:
     product: str
     year: int | None
     url: str
+    previous: np.ndarray | None = None  # same grid, an earlier year, for change detection
+    previous_year: int | None = None
 
     @property
     def bounds(self) -> tuple[float, float, float, float]:
@@ -93,9 +95,13 @@ class LandCover:
         return minx, miny, maxx, maxy
 
 
-def pick_annual_coverage(coverage_ids: list[str]) -> tuple[str, int] | None:
-    """Newest-year land cover coverage from a capabilities list (skips change/confidence products)."""
-    best: tuple[str, int] | None = None
+def pick_annual_coverage(coverage_ids: list[str]) -> tuple[str, int | None] | None:
+    """Newest-year land cover coverage from a capabilities list (skips change/confidence products).
+
+    Returns (coverage id, year). Year is None for a multi-year coverage with a time axis.
+    """
+    best: tuple[str, int | None] | None = None
+    multi_year: str | None = None
     for cid in coverage_ids:
         low = re.sub(r"[^a-z0-9]", "", cid.lower())  # "Land-Cover", "land_cover", "LndCov" all match
         if not ("lndcov" in low or "landcover" in low):
@@ -104,11 +110,19 @@ def pick_annual_coverage(coverage_ids: list[str]) -> tuple[str, int] | None:
             continue
         years = [int(y) for y in re.findall(r"(?<!\d)(19[89]\d|20[0-4]\d)(?!\d)", cid)]
         if not years:
+            multi_year = multi_year or cid
             continue
         y = max(years)
-        if best is None or y > best[1]:
+        if best is None or (best[1] is not None and y > best[1]):
             best = (cid, y)
+    if best is None and multi_year:
+        return (multi_year, None)
     return best
+
+
+def time_positions(describe_xml: str) -> list[str]:
+    """ISO timestamps of the years a coverage offers (GeoServer TimeDomain)."""
+    return sorted(set(re.findall(r"<gml:timePosition>\s*([0-9T:.\-]+Z)\s*</gml:timePosition>", describe_xml)))
 
 
 def coverage_ids(capabilities_xml: str) -> list[str]:
@@ -134,14 +148,19 @@ def _tiles(bounds: tuple[float, float, float, float], max_px: int = 1500) -> lis
     return out
 
 
-def _get_coverage(session: Session, base: str, cid: str, b: tuple[float, float, float, float]) -> rasterio.io.MemoryFile:
+def _get_coverage(
+    session: Session, base: str, cid: str, b: tuple[float, float, float, float], time: str | None = None
+) -> rasterio.io.MemoryFile:
+    subset = [f"X({b[0]},{b[2]})", f"Y({b[1]},{b[3]})"]
+    if time:
+        subset.append(f'time("{time}")')
     params = {
         "service": "WCS",
         "version": "2.0.1",
         "request": "GetCoverage",
         "coverageId": cid,
         "format": "image/tiff",
-        "subset": [f"X({b[0]},{b[2]})", f"Y({b[1]},{b[3]})"],
+        "subset": subset,
     }
     # A 1500 x 1500 tile of 8-bit classes is ~2 MB; anything far bigger means the area limit was ignored.
     body, ctype = get_bytes(session, base, params, source=SOURCE, max_bytes=40_000_000)
@@ -151,8 +170,8 @@ def _get_coverage(session: Session, base: str, cid: str, b: tuple[float, float, 
     return rasterio.io.MemoryFile(io.BytesIO(body))
 
 
-def _download(session: Session, base: str, cid: str, bounds) -> tuple[np.ndarray, Affine, str]:
-    files = [_get_coverage(session, base, cid, b) for b in _tiles(bounds)]
+def _download(session: Session, base: str, cid: str, bounds, time: str | None = None) -> tuple[np.ndarray, Affine, str]:
+    files = [_get_coverage(session, base, cid, b, time) for b in _tiles(bounds)]
     datasets = [f.open() for f in files]
     try:
         crs = datasets[0].crs.to_string() if datasets[0].crs else "EPSG:5070"
@@ -178,8 +197,12 @@ def validate(arr: np.ndarray) -> float:
     return float(valid.mean())
 
 
+CHANGE_YEARS_BACK = 5
+
+
 def fetch(session: Session, bounds_5070: tuple[float, float, float, float]) -> tuple[LandCover, list[str]]:
-    """Newest land cover available for the area. Returns (land cover, notes on what was tried)."""
+    """Newest land cover available for the area (plus an earlier year when the service offers
+    one, for spotting recent logging). Returns (land cover, notes on what was tried)."""
     tried: list[str] = []
     try:
         caps, _ = get_bytes(
@@ -190,10 +213,36 @@ def fetch(session: Session, bounds_5070: tuple[float, float, float, float]) -> t
         pick = pick_annual_coverage(ids)
         if pick:
             cid, year = pick
-            arr, tr, crs = _download(session, DMS_WCS, cid, bounds_5070)
+            time = prev_time = None
+            prev_year = None
+            if year is None:
+                desc, _ = get_bytes(
+                    session, DMS_WCS, {"service": "WCS", "version": "2.0.1", "request": "DescribeCoverage", "coverageId": cid},
+                    source=SOURCE, max_bytes=10_000_000,
+                )
+                times = time_positions(desc.decode("utf-8", "replace"))
+                if not times:
+                    raise SourceError(SOURCE, f"{cid} lists no years")
+                time = times[-1]
+                year = int(time[:4])
+                earlier = [t for t in times if int(t[:4]) <= year - CHANGE_YEARS_BACK]
+                if earlier:
+                    prev_time = earlier[-1]
+                    prev_year = int(prev_time[:4])
+            arr, tr, crs = _download(session, DMS_WCS, cid, bounds_5070, time)
             share = validate(arr)
             if share >= 0.5:
-                return LandCover(arr, tr, crs, f"Annual NLCD ({cid})", year, DMS_WCS), tried
+                lc = LandCover(arr, tr, crs, f"Annual NLCD {year}", year, DMS_WCS)
+                if prev_time:
+                    try:
+                        prev, ptr, _ = _download(session, DMS_WCS, cid, bounds_5070, prev_time)
+                        if prev.shape == arr.shape and ptr == tr and validate(prev) >= 0.5:
+                            lc.previous, lc.previous_year = prev, prev_year
+                        else:
+                            tried.append(f"Annual NLCD {prev_year}: grid didn't match {year}; change detection skipped")
+                    except SourceError as e:
+                        tried.append(f"Annual NLCD {prev_year}: {e.message}; change detection skipped")
+                return lc, tried
             tried.append(f"Annual NLCD {cid}: only {share:.0%} valid pixels")
         else:
             tried.append("Annual NLCD: no land cover coverage listed in capabilities")
@@ -247,7 +296,19 @@ def unit_stats(lc: LandCover, geom_5070) -> dict[str, Any] | None:
     )
     hectares = n_land * PIXEL_M * PIXEL_M / 10000
     edge_m_per_ha = float(pairs) * PIXEL_M / hectares if hectares > 0 else 0.0
+    change: dict[str, Any] = {}
+    if lc.previous is not None:
+        prev = lc.previous[r0 : r0 + h, c0 : c0 + w][inside]
+        now = sub[inside]
+        ok = np.isin(prev, list(CLASSES)) & np.isin(now, list(CLASSES))
+        # Forest then, brush/regrowth, grass or bare ground now: almost always logging here.
+        opened = ok & np.isin(prev, [41, 42, 43]) & np.isin(now, [52, 71, 31])
+        change = {
+            "recent_opening_share": round(float(opened.sum()) / max(1, int(ok.sum())), 4),
+            "change_years": [lc.previous_year, lc.year],
+        }
     return {
+        **change,
         "lc_pixels": int(vals.size),
         "lc_shares": {k: round(v, 4) for k, v in shares.items()},
         "forest": round(forest, 4),

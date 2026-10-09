@@ -41,6 +41,7 @@ habitat:
   conifer_good: 0.40
   dev_low: 0.03
   dev_high: 0.15
+  recent_cut_good: 0.10  # share of the block cut/opened in the last ~5 years for full extra food credit
   parts: {food: 0.30, cover: 0.25, edge: 0.25, conifer: 0.20}
 
 pressure:

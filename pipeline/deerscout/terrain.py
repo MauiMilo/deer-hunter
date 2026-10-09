@@ -282,6 +282,9 @@ SADDLE_PROMINENCE_M = 6.0  # ground must rise this much along the ridge and fall
 SADDLE_REACH_M = 150.0
 BENCH_STEP_M = 10.0  # a bench must have this much climb above and drop below it
 BENCH_REACH_M = 100.0
+BENCH_MAX_SLOPE = 8.0  # degrees, on the shelf itself
+BENCH_CONTEXT_M = 100.0  # half-width of the window checked for steeper ground around it
+BENCH_CONTEXT_SLOPE = 12.0  # average slope (degrees) required in that window
 
 
 def _rise(z: np.ndarray, r: int, c: int, bearing_deg: float, dist_m: float, res: float) -> float | None:
@@ -321,9 +324,10 @@ def find_features(dem: Dem, t: TerrainLayers) -> list[Feature]:
     # Saddles: low point between two higher points along a ridge line (negative curvature
     # determinant, gentle slope, and higher than the surrounding landscape).
     saddle = valid & (t.hess_det < -2e-6) & (t.slope_deg < 12) & (t.tpi_large > 0.25 * sd_l)
-    # Benches: flat shelves partway up a hillside.
-    local_slope = ndimage.uniform_filter(np.nan_to_num(t.slope_deg), size=max(3, int(2 * 60 / r) + 1))
-    bench = valid & (t.slope_deg < 8) & (local_slope > 16) & (np.abs(t.tpi_large) < 0.6 * sd_l)
+    # Benches: flat shelves partway up a hillside. Thresholds were checked against real 3DEP
+    # terrain around Pittsburg (median slope ~9 degrees), where a 16-degree rule found almost nothing.
+    local_slope = ndimage.uniform_filter(np.nan_to_num(t.slope_deg), size=max(3, int(2 * BENCH_CONTEXT_M / r) + 1))
+    bench = valid & (t.slope_deg < BENCH_MAX_SLOPE) & (local_slope > BENCH_CONTEXT_SLOPE) & (np.abs(t.tpi_large) < 0.6 * sd_l)
 
     for kind, mask, min_m2 in (("saddle", saddle, 600.0), ("bench", bench, 1500.0)):
         lab, n = ndimage.label(mask)

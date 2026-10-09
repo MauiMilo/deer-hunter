@@ -247,3 +247,21 @@ def test_cog_reader_warps_geographic_tiles(tmp_path):
     lon, lat = Transformer.from_crs("EPSG:5070", "EPSG:4269", always_xy=True).transform(x0 + 4000, y0 + 4000)
     mid = dem.z[dem.z.shape[0] // 2, dem.z.shape[1] // 2]
     assert mid == pytest.approx(300 + 1000 * (lat - 45.0), abs=3)
+
+
+def test_multi_year_coverage_and_time_axis():
+    ids = ["mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data"]
+    assert landcover.pick_annual_coverage(ids) == (ids[0], None)
+    xml = "<gml:timePosition>2024-01-01T00:00:00.000Z</gml:timePosition><gml:timePosition>2025-01-01T00:00:00.000Z</gml:timePosition>"
+    assert landcover.time_positions(xml)[-1] == "2025-01-01T00:00:00.000Z"
+
+
+def test_recent_logging_detected():
+    lc = lc_raster()
+    prev = np.full_like(lc.data, 41)
+    prev[:10, :10] = 11
+    lc.previous, lc.previous_year = prev, 2020
+    st = landcover.unit_stats(lc, box(0, 0, 3000, 3000))
+    # The regrowth strip (10 rows x 100) was forest in 2020: 1000 of 10000 classified pixels.
+    assert st["recent_opening_share"] == pytest.approx(0.1, abs=0.001)
+    assert st["change_years"] == [2020, 2024]
