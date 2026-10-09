@@ -182,3 +182,15 @@ def test_road_signals_for_a_block():
     far = roads.unit_signals(net, box(5000, 5000, 6000, 6000))
     assert far["road_min_dist_m"] > 3000
     assert far["share_near_road"] == 0
+
+
+def test_distance_grid_matches_vector_shares():
+    import geopandas as gpd
+
+    road = gpd.GeoDataFrame({"name": ["Main Rd"], "source": ["dot"], "gated": [False]}, geometry=[LineString([(0, 0), (2000, 0)])], crs="EPSG:5070")
+    net = roads.Network.build(road, None)
+    vec = roads.unit_signals(net, box(0, 0, 2000, 2000))
+    net.build_distance_grid((0, 0, 2000, 2000), res=10)
+    grid = roads.unit_signals(net, box(0, 0, 2000, 2000))
+    assert grid["share_near_road"] == pytest.approx(vec["share_near_road"], abs=0.02)
+    assert grid["share_interior"] == pytest.approx(vec["share_interior"], abs=0.02)

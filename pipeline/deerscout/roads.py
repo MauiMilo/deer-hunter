@@ -18,6 +18,9 @@ from typing import Any
 import geopandas as gpd
 import numpy as np
 import shapely
+from rasterio.features import geometry_mask, rasterize
+from rasterio.transform import Affine, from_origin
+from scipy import ndimage
 from shapely.geometry import LineString
 
 from .arcgis import FetchResult, layer_info, query_geojson
@@ -88,7 +91,7 @@ def fetch_osm_roads(session: Session, envelope) -> tuple[gpd.GeoDataFrame, str]:
     last = ""
     for url in OVERPASS:
         try:
-            doc = get_json(session, url, {"data": q}, source=SOURCE_OSM, timeout=300)
+            doc = get_json(session, url, {"data": q}, source=SOURCE_OSM, timeout=200, retries=2)
             gdf = parse_overpass(doc)
             if gdf.empty:
                 raise SourceError(SOURCE_OSM, "no ways returned")
@@ -125,11 +128,51 @@ class Network:
     trails: list[Any]
 
     def __post_init__(self) -> None:
-        # Spatial indexes only. Road zones are built per unit from nearby lines; buffering the
-        # whole county's network at once needs far too much memory.
         self._dtree = shapely.STRtree(self.drivable) if self.drivable else None
         self._gtree = shapely.STRtree(self.gated) if self.gated else None
         self._ttree = shapely.STRtree(self.trails) if self.trails else None
+        self._grid: tuple[np.ndarray, Affine] | None = None
+
+    def build_distance_grid(self, bounds, res: float = 30.0) -> None:
+        """Distance (m) from every cell to the nearest drivable road, on a grid over `bounds`.
+
+        Drawing the roads once and measuring distance per cell is fast and light on memory,
+        unlike buffering thousands of road lines as shapes.
+        """
+        if not self.drivable:
+            return
+        minx, miny, maxx, maxy = bounds
+        pad = INTERIOR_M * 2
+        minx, miny, maxx, maxy = minx - pad, miny - pad, maxx + pad, maxy + pad
+        w = int(np.ceil((maxx - minx) / res))
+        h = int(np.ceil((maxy - miny) / res))
+        tr = from_origin(minx, maxy, res, res)
+        lines = [g for g in self.drivable if g.intersects(shapely.box(minx, miny, maxx, maxy))]
+        if not lines:
+            dist = np.full((h, w), np.inf, dtype=np.float32)
+        else:
+            on_road = rasterize(((g, 1) for g in lines), out_shape=(h, w), transform=tr, fill=0, all_touched=True, dtype="uint8")
+            dist = (ndimage.distance_transform_edt(on_road == 0) * res).astype(np.float32)
+        self._grid = (dist, tr)
+
+    def _grid_shares(self, geom_ea) -> tuple[float, float] | None:
+        if self._grid is None:
+            return None
+        dist, tr = self._grid
+        inv = ~tr
+        minx, miny, maxx, maxy = geom_ea.bounds
+        c0, r0 = inv @ (minx, maxy)
+        c1, r1 = inv @ (maxx, miny)
+        r0, c0 = max(0, int(r0)), max(0, int(c0))
+        r1, c1 = min(dist.shape[0], int(np.ceil(r1))), min(dist.shape[1], int(np.ceil(c1)))
+        if r1 <= r0 or c1 <= c0:
+            return None
+        sub = dist[r0:r1, c0:c1]
+        inside = geometry_mask([geom_ea], out_shape=sub.shape, transform=tr @ Affine.translation(c0, r0), invert=True, all_touched=True)
+        vals = sub[inside]
+        if vals.size == 0:
+            return None
+        return float((vals <= NEAR_ROAD_M).mean()), float((vals > INTERIOR_M).mean())
 
     @classmethod
     def build(cls, roads: gpd.GeoDataFrame | None, trails: gpd.GeoDataFrame | None) -> "Network":
@@ -175,13 +218,17 @@ def unit_signals(net: Network, geom_ea) -> dict[str, Any]:
         out["nearest_road_name"] = name
         rp = geom_ea.representative_point()
         out["center_to_road_m"] = round(_nearest(net._dtree, net.drivable, rp)[0], 1)
-        local = [net.drivable[j] for j in net._dtree.query(geom_ea.buffer(INTERIOR_M))]
-        if local:
-            lines = shapely.union_all(local)
-            near = geom_ea.intersection(lines.buffer(NEAR_ROAD_M, quad_segs=4)).area / area
-            far = geom_ea.difference(lines.buffer(INTERIOR_M, quad_segs=4)).area / area
+        shares = net._grid_shares(geom_ea)
+        if shares is not None:
+            near, far = shares
         else:
-            near, far = 0.0, 1.0
+            local = [net.drivable[j] for j in net._dtree.query(geom_ea.buffer(INTERIOR_M))]
+            if local:
+                lines = shapely.union_all(local)
+                near = geom_ea.intersection(lines.buffer(NEAR_ROAD_M, quad_segs=4)).area / area
+                far = geom_ea.difference(lines.buffer(INTERIOR_M, quad_segs=4)).area / area
+            else:
+                near, far = 0.0, 1.0
         out["share_near_road"] = round(float(near), 4)
         out["share_interior"] = round(float(far), 4)
     ghit = _nearest(net._gtree, net.gated, geom_ea)

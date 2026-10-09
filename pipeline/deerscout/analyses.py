@@ -131,33 +131,50 @@ def write_landcover_overlay(ctx: Context, lc: landcover.LandCover, max_px: int =
 
 
 def run_roads(ctx: Context) -> None:
+    import time
+
     frames = []
+    t0 = time.time()
     try:
         dot, res = roads.fetch_dot_roads(ctx.session, ctx.envelope)
         frames.append(dot)
         ctx.record(roads.SOURCE_DOT, "ok", url=res.url, features=len(res.features), retrieved_at=res.retrieved_at)
+        log.info("DOT roads: %d segments in %.0fs", len(dot), time.time() - t0)
     except Exception as e:
         ctx.record(roads.SOURCE_DOT, "failed", error=str(e))
+        log.error("DOT roads failed: %s", e)
+    t0 = time.time()
     try:
         osm, url = roads.fetch_osm_roads(ctx.session, ctx.envelope)
         frames.append(osm[["name", "source", "gated", "geometry"]])
         ctx.record(roads.SOURCE_OSM, "ok", url=url, features=len(osm), license="ODbL (c) OpenStreetMap contributors")
+        log.info("OpenStreetMap: %d ways in %.0fs", len(osm), time.time() - t0)
     except Exception as e:
         ctx.record(roads.SOURCE_OSM, "failed", error=str(e))
         ctx.manifest["warnings"].append("OpenStreetMap logging roads unavailable; access may be underestimated in big woods.")
+        log.error("OpenStreetMap failed after %.0fs: %s", time.time() - t0, e)
     if not frames:
         raise RuntimeError("no road source available")
+    t0 = time.time()
     trails = None
     try:
         trails, results = roads.fetch_trails(ctx.session, ctx.envelope)
         ctx.record(roads.SOURCE_TRAILS, "ok", features=len(trails), url=roads.TRAILS_SERVICE)
+        log.info("trails: %d lines in %.0fs", len(trails), time.time() - t0)
     except Exception as e:
         ctx.record(roads.SOURCE_TRAILS, "failed", error=str(e))
+        log.error("trails failed: %s", e)
+    t0 = time.time()
     all_roads = gpd.GeoDataFrame(gpd.pd.concat(frames, ignore_index=True), geometry="geometry", crs=WGS84)
     ctx.net = roads.Network.build(all_roads, trails)
+    ctx.net.build_distance_grid(analysis_bounds(ctx))
+    log.info("road network indexed and distance grid built in %.0fs (peak memory %.0f MB)", time.time() - t0, mem_mb())
+    n = 0
     for uid, geom in zip(ctx.units_ea["id"], ctx.units_ea.geometry):
         if uid in ctx.analyze_ids:
             ctx.sig(uid).update(roads.unit_signals(ctx.net, geom))
+            n += 1
+    log.info("road signals for %d units in %.0fs", n, time.time() - t0)
 
 
 # ------------------------------------------------------------------ terrain and spots
