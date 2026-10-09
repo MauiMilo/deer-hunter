@@ -68,6 +68,8 @@ def test_wmnf_and_umbagog(rules):
     r = rules.evaluate(prop(name="Pondicherry Unit of Silvio O Conte NFWR", agency_code=21000))
     assert r.status == "unknown"
     assert r.rule_id == "conte-pondicherry-division"
+    # Other Conte divisions must not pick up the Pondicherry wording.
+    assert rules.evaluate(prop(name="Mohawk Div. of Silvio O Conte NFWR", agency_code=21000)).rule_id == "other-federal"
 
 
 def test_fish_and_game_land_needs_checking(rules):

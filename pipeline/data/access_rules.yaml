@@ -150,7 +150,7 @@ rules:
     status: unknown
     when:
       agency_code: [21000]
-      name_any: ["Pondicherry", "Conte"]
+      name_contains: "Pondicherry"
     summary: "Pondicherry Division of the Silvio O. Conte refuge. The Fish and Wildlife Service says the division supports deer hunting but that not all parts of the refuge are open, and the closed areas weren't found. Fish and Game lists the Pondicherry Wildlife Refuge, inside this area, as closed."
     restrictions:
       - "Get the refuge's New Hampshire hunting information sheet or call the refuge for closed areas before hunting."
