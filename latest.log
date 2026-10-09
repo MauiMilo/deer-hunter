@@ -1,0 +1,18 @@
+INFO tracts in region: 719
+INFO wrote properties.geojson (442.2 KB)
+INFO wrote blocks.geojson (392.9 KB)
+INFO wrote catalog.json (2323.3 KB)
+INFO wrote regulations.json (3.1 KB)
+INFO wrote manifest.json (1.7 KB)
+{
+  "tracts": 719,
+  "properties": 297,
+  "units": 1008,
+  "blocks": 733,
+  "access_status": {
+    "unknown": 229,
+    "verified": 53,
+    "prohibited": 15
+  },
+  "total_acres": 670473
+}
