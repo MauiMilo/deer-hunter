@@ -1,0 +1,65 @@
+name: Refresh data
+
+# Downloads real data from GRANIT, the Census Bureau and USGS, rebuilds the app's data files,
+# and commits them. Runs on GitHub's servers because they have normal internet access.
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Region to build
+        default: coos
+  schedule:
+    - cron: "17 9 * * 1" # Mondays 09:17 UTC (5:17 AM in NH)
+  push:
+    branches: [main]
+    paths:
+      - "pipeline/deerscout/**"
+      - "pipeline/data/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  build-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: pipeline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+      - name: Build data
+        run: python -m deerscout.build --region "${{ github.event.inputs.region || 'coos' }}"
+      - name: Keep raw downloads for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-downloads
+          path: pipeline/.cache/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Commit updated data
+        working-directory: .
+        run: |
+          git config user.name "deer-scout-data-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add web/public/data
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Data refresh $(date -u +%Y-%m-%d)"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

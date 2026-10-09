@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
+/*
+  Field palette. Dark by default for pre-dawn use (keeps your night vision), with a
+  high-contrast light theme for bright daylight. Blaze orange marks the main action.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0e1310;
+  --surface: #161d19;
+  --surface-2: #1f2822;
+  --line: #2b362f;
+  --text: #e9eee9;
+  --muted: #9aa79f;
+  --faint: #6c7a72;
+  --blaze: #ff6b1a;
+  --blaze-ink: #1a0d05;
+  --ok: #4cc38a;
+  --warn: #e3b341;
+  --bad: #ef5f57;
+  --info: #6cb6ff;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f1ea;
+    --surface: #fffdf7;
+    --surface-2: #ebe8df;
+    --line: #d6d2c6;
+    --text: #17201b;
+    --muted: #4e5a53;
+    --faint: #77827b;
+    --blaze: #e2560c;
+    --blaze-ink: #ffffff;
+    --ok: #1f8a57;
+    --warn: #a86f00;
+    --bad: #c4352d;
+    --info: #1f6fc4;
   }
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-blaze: var(--blaze);
+  --color-blaze-ink: var(--blaze-ink);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Safe areas for the iPhone notch and home bar when installed to the home screen. */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), 0.75rem);
+}
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+
+.maplibregl-popup-content {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.maplibregl-popup-tip {
+  display: none;
+}
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
 }

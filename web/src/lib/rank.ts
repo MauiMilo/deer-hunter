@@ -67,6 +67,26 @@ export function travelScore(driveMin: number | null): number | null {
   return Math.max(0, Math.min(100, ((150 - driveMin) / 135) * 100));
 }
 
+/**
+ * Keep the best-ranked block of each property so one huge property can't fill the list.
+ * `more` counts that property's other open blocks.
+ */
+export function bestPerProperty(ranked: Ranked[]): (Ranked & { more: number })[] {
+  const seen = new Map<string, Ranked & { more: number }>();
+  const out: (Ranked & { more: number })[] = [];
+  for (const r of ranked) {
+    const hit = seen.get(r.property.id);
+    if (hit) {
+      hit.more++;
+      continue;
+    }
+    const entry = { ...r, more: 0 };
+    seen.set(r.property.id, entry);
+    out.push(entry);
+  }
+  return out;
+}
+
 export function rank(input: RankInput): RankOutput {
   const w = input.weights ?? DEFAULT_TRIP_WEIGHTS;
   const props = new Map(input.catalog.properties.map((p) => [p.id, p]));

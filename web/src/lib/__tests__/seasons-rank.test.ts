@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scoreConditions } from "../conditions";
-import { rank, reweight, travelScore } from "../rank";
+import { bestPerProperty, rank, reweight, travelScore } from "../rank";
 import { nextOpening, seasonStatus } from "../seasons";
 import { catalog, property, regs, unit } from "./fixtures";
 
@@ -104,6 +104,15 @@ describe("ranking", () => {
   it("recomputes quality with custom weights, ignoring missing factors", () => {
     expect(reweight(units[0], { habitat: 0.9, access: 0.1 })).toBe(50);
     expect(reweight(units[0], { habitat: 0.9, access: 0 })).toBeNull();
+  });
+
+  it("keeps only the best block of each property", () => {
+    const blocks = [unit("big~A1", "bigopen", 70, [-71.45, 45.1]), unit("big~A2", "bigopen", 60, [-71.45, 45.1]), ...units];
+    const out = rank({ catalog: catalog(blocks, props), regs, ymd: "2026-10-10", method: "archery", origin: null, includeUnknown: false });
+    const best = bestPerProperty(out.ranked);
+    expect(best.map((r) => r.unit.id)).toEqual(["bigopen", "open"]);
+    expect(best[0].more).toBe(2);
+    expect(best[1].more).toBe(0);
   });
 
   it("scores travel time", () => {
