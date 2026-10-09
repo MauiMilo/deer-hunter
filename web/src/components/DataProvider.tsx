@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Catalog, Manifest, Property, Regulations, Unit } from "@/lib/types";
+import type { Catalog, LandcoverMeta, Manifest, Property, Regulations, Spot, Unit, WindHistory } from "@/lib/types";
 
 interface DataState {
   loading: boolean;
@@ -9,11 +9,23 @@ interface DataState {
   catalog: Catalog | null;
   regs: Regulations | null;
   manifest: Manifest | null;
+  windHistory: WindHistory | null;
+  landcover: LandcoverMeta | null;
   propertyById: Map<string, Property>;
   unitById: Map<string, Unit>;
+  spotById: Map<string, Spot>;
 }
 
 const Ctx = createContext<DataState | null>(null);
+
+async function optionalJson<T>(path: string): Promise<T | null> {
+  try {
+    const res = await fetch(path, { cache: "no-cache" });
+    return res.ok ? ((await res.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path, { cache: "no-cache" });
@@ -22,12 +34,14 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<Omit<DataState, "propertyById" | "unitById">>({
+  const [state, setState] = useState<Omit<DataState, "propertyById" | "unitById" | "spotById">>({
     loading: true,
     error: null,
     catalog: null,
     regs: null,
     manifest: null,
+    windHistory: null,
+    landcover: null,
   });
 
   useEffect(() => {
@@ -36,8 +50,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       getJson<Catalog>("/data/catalog.json"),
       getJson<Regulations>("/data/regulations.json"),
       getJson<Manifest>("/data/manifest.json"),
+      optionalJson<WindHistory>("/data/wind_history.json"),
+      optionalJson<LandcoverMeta>("/data/landcover.json"),
     ])
-      .then(([catalog, regs, manifest]) => alive && setState({ loading: false, error: null, catalog, regs, manifest }))
+      .then(
+        ([catalog, regs, manifest, windHistory, landcover]) =>
+          alive && setState({ loading: false, error: null, catalog, regs, manifest, windHistory, landcover }),
+      )
       .catch((e: Error) =>
         alive &&
         setState({
@@ -46,6 +65,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           catalog: null,
           regs: null,
           manifest: null,
+          windHistory: null,
+          landcover: null,
         }),
       );
     return () => {
@@ -58,6 +79,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ...state,
       propertyById: new Map((state.catalog?.properties ?? []).map((p) => [p.id, p])),
       unitById: new Map((state.catalog?.units ?? []).map((u) => [u.id, u])),
+      spotById: new Map((state.catalog?.spots ?? []).map((s) => [s.id, s])),
     }),
     [state],
   );

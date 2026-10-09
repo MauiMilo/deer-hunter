@@ -121,3 +121,74 @@ describe("ranking", () => {
     expect(travelScore(null)).toBeNull();
   });
 });
+
+import { bestSpot, evaluateSpot, spotFitFromArcs } from "../spots";
+import type { Spot } from "../types";
+
+const spot = (o: Partial<Spot> = {}): Spot => ({
+  id: "s1",
+  unit_id: "open",
+  property_id: "open",
+  kind: "saddle",
+  point: [-71.4, 45.05],
+  elevation_ft: 2000,
+  slope_deg: 5,
+  score: 70,
+  confidence: "low",
+  reasons: [],
+  travel_axis_deg: 0, // deer travel north-south
+  good_winds_from: [
+    [45, 135],
+    [225, 315],
+  ],
+  approach: { road_name: "Test Rd", distance_m: 800, road_bearing_deg: 180 }, // road is south: walk in heading north
+  ...o,
+});
+
+describe("spots and wind", () => {
+  it("reads the good-wind arcs, including arcs that cross north", () => {
+    expect(spotFitFromArcs(270, spot())).toBe("good");
+    expect(spotFitFromArcs(0, spot())).toBe("bad");
+    expect(spotFitFromArcs(30, spot())).toBe("marginal");
+    expect(spotFitFromArcs(5, spot({ good_winds_from: [[340, 20]] }))).toBe("good");
+  });
+
+  it("docks a spot's day score for the wrong wind or a tailwind walk in", () => {
+    expect(evaluateSpot(spot(), 270).dayScore).toBe(70); // crosswind; walk-in crosswind too
+    const north = evaluateSpot(spot(), 0); // along the route, but in your face walking north
+    expect(north.windFit).toBe("bad");
+    expect(north.approachFit).toBe("good");
+    expect(north.dayScore).toBe(45);
+    const south = evaluateSpot(spot(), 180); // along the route AND at your back
+    expect(south.dayScore).toBe(35);
+    expect(evaluateSpot(spot(), null).dayScore).toBe(70);
+  });
+
+  it("picks the spot that suits the day", () => {
+    const a = spot({ id: "a", score: 80, travel_axis_deg: 90, good_winds_from: [[315, 45], [135, 225]] });
+    const b = spot({ id: "b", score: 60 });
+    expect(bestSpot([a, b], 270)!.spot.id).toBe("b"); // west wind: a is wrong, b is right
+    expect(bestSpot([a, b], 0)!.spot.id).toBe("a");
+  });
+
+  it("lowers a unit's day value when no spot suits the wind", () => {
+    const props = [property("open", "verified"), property("bigopen", "verified")];
+    const cat = catalog([unit("open", "open", 50, [-71.4, 45.05]), unit("bigopen", "bigopen", 80, [-71.45, 45.1])], props);
+    const calm = { score: 100, hours: 3, parts: [], safety: [], wind: { fromDeg: 0, avgMph: 5, maxGustMph: 8, spreadDeg: 5, steady: true }, tempRange: [30, 40] as [number, number], precipIn: 0, codes: [1] };
+    const out = rank({
+      catalog: cat,
+      regs,
+      ymd: "2026-10-10",
+      method: "archery",
+      origin: null,
+      includeUnknown: false,
+      conditionsFor: () => calm,
+      spotsFor: (u) => (u.id === "open" ? [spot()] : []),
+    });
+    const open = out.ranked.find((r) => r.unit.id === "open")!;
+    expect(open.dayValue).toBe(85);
+    expect(open.windNote).toMatch(/None of this area/);
+    const other = out.ranked.find((r) => r.unit.id === "bigopen")!;
+    expect(other.dayValue).toBe(100);
+  });
+});

@@ -87,7 +87,7 @@ def fetch_dem(
             "renderingRule": '{"rasterFunction":"None"}',
             "f": "image",
         }
-        body, ctype = get_bytes(session, IMAGE_SERVER, params, source=SOURCE, timeout=300)
+        body, ctype = get_bytes(session, IMAGE_SERVER, params, source=SOURCE, timeout=300, max_bytes=8 * w * h + 1_000_000)
         if body[:4] not in (b"II*\x00", b"MM\x00*"):
             raise SourceError(SOURCE, f"expected a TIFF, got {ctype}: {body[:200]!r}")
         if cached:

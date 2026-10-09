@@ -59,3 +59,30 @@ describe("wind directions", () => {
     expect(windFavorsSetup(330, 0)).toBe("good");
   });
 });
+
+import { approachFit, axisDiff, spotWindFit } from "../wind";
+
+describe("spot wind fit", () => {
+  it("measures angles between lines, not directions", () => {
+    expect(axisDiff(0, 180)).toBe(0);
+    expect(axisDiff(10, 350)).toBe(20);
+    expect(axisDiff(90, 0)).toBe(90);
+    expect(axisDiff(135, 0)).toBe(45);
+  });
+
+  it("likes a crosswind on a travel route", () => {
+    // Deer travel north-south through a saddle.
+    expect(spotWindFit(270, 0)).toBe("good"); // west wind blows across the route
+    expect(spotWindFit(90, 180)).toBe("good");
+    expect(spotWindFit(10, 0)).toBe("bad"); // north wind blows down the route
+    expect(spotWindFit(200, 0)).toBe("bad");
+    expect(spotWindFit(35, 0)).toBe("marginal");
+  });
+
+  it("wants the wind in your face on the walk in", () => {
+    // Walking north (bearing 0) into the spot.
+    expect(approachFit(0, 0)).toBe("good"); // north wind in your face
+    expect(approachFit(180, 0)).toBe("bad"); // south wind at your back
+    expect(approachFit(90, 0)).toBe("marginal");
+  });
+});

@@ -6,6 +6,7 @@ import { useData } from "@/components/DataProvider";
 import { conditionsAt, forecastFor, useForecast } from "@/components/useForecast";
 import { useLocation } from "@/components/useLocation";
 import { useSettings } from "@/components/useSettings";
+import { FitBadge } from "@/components/spot-ui";
 import { Card, Chip, Notice, PageHeader, ScorePill, SectionTitle, StatusBadge, WindArrow } from "@/components/ui";
 import type { Window } from "@/lib/conditions";
 import { addDays, labelDay, monthDay, nextSaturday, ymdInTz } from "@/lib/dates";
@@ -23,7 +24,7 @@ const WINDOWS: { key: Window; label: string }[] = [
 const METHODS: Method[] = ["archery", "muzzleloader", "firearm"];
 
 export default function HuntPage() {
-  const { catalog, regs, manifest, loading, error } = useData();
+  const { catalog, regs, manifest, loading, error, spotById } = useData();
   const [settings, update] = useSettings();
   const { loc, locate } = useLocation();
   const today = ymdInTz(new Date());
@@ -58,10 +59,11 @@ export default function HuntPage() {
       factorWeights: settings.factorWeights ?? undefined,
       weights: settings.tripWeights,
       conditionsFor: (u) => conditionsAt(forecastFor(fc.byKey, u.point), u.point, day, settings.window, regs).conditions,
+      spotsFor: (u) => (u.spot_ids ?? []).map((id) => spotById.get(id)).filter((x): x is NonNullable<typeof x> => !!x),
     });
     // origin is derived from loc/settings; listing them keeps this stable
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalog, regs, day, settings, fc.byKey, loc]);
+  }, [catalog, regs, day, settings, fc.byKey, loc, spotById]);
 
   const headline = useMemo(() => {
     if (!regs) return null;
@@ -265,6 +267,16 @@ function ResultCard({ r, rankNo, day, window }: { r: Ranked & { more: number }; 
             {r.season.certainty === "split-unit" && <span className="text-xs text-warn">Near a WMU line</span>}
             {r.more > 0 && <span className="text-xs text-muted">+{r.more} more open blocks here</span>}
           </div>
+          {r.best && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted">Best spot:</span>
+              <span className="font-medium">
+                {r.best.spot.kind === "saddle" ? "Saddle" : "Bench"} · {r.best.spot.elevation_ft.toLocaleString()} ft
+              </span>
+              <FitBadge fit={r.best.windFit} />
+            </div>
+          )}
+          {r.windNote && <p className="mt-1 text-xs text-warn">{r.windNote}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             {r.conditions ? <WindArrow fromDeg={r.conditions.wind.fromDeg} mph={r.conditions.wind.avgMph} size={22} /> : <span className="text-muted">No forecast</span>}
             {r.miles !== null && (

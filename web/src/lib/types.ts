@@ -50,6 +50,23 @@ export interface Wmu {
   note: string;
 }
 
+export interface Spot {
+  id: string;
+  unit_id: string;
+  property_id: string;
+  kind: "saddle" | "bench";
+  point: [number, number];
+  elevation_ft: number;
+  slope_deg: number;
+  score: number;
+  confidence: "low" | "medium" | "high";
+  reasons: string[];
+  /** Likely direction deer travel through/along the feature, 0-180 degrees. */
+  travel_axis_deg: number;
+  good_winds_from: [number, number][];
+  approach: { road_name: string | null; distance_m: number; road_bearing_deg: number } | null;
+}
+
 export interface Unit {
   id: string;
   property_id: string;
@@ -61,6 +78,7 @@ export interface Unit {
   town: string | null;
   wmu: Wmu;
   score: Score;
+  spot_ids?: string[];
 }
 
 export interface Property {
@@ -104,6 +122,7 @@ export interface Catalog {
   scoring: { weights: Record<FactorKey, number>; provisional_below_coverage: number };
   properties: Property[];
   units: Unit[];
+  spots?: Spot[];
 }
 
 export type Method = "archery" | "muzzleloader" | "firearm" | "youth";
@@ -155,4 +174,28 @@ export interface Manifest {
     access_status: Partial<Record<AccessStatus, number>>;
     total_acres: number;
   };
+}
+
+export interface WindRoseCell {
+  hours: number;
+  calm_share: number | null;
+  sector_share: number[]; // N, NE, E, SE, S, SW, W, NW
+  mean_from_deg: number | null;
+  steadiness: number;
+  median_mph: number | null;
+  p90_mph: number | null;
+}
+
+export interface WindHistory {
+  period: [string, string];
+  note: string;
+  cell_step_deg: number;
+  points: Record<string, { lat: number; lon: number; elevation_m: number | null; seasons: Record<string, Partial<Record<"morning" | "evening", WindRoseCell>>> }>;
+}
+
+export interface LandcoverMeta {
+  product: string;
+  year: number | null;
+  coordinates: [[number, number], [number, number], [number, number], [number, number]];
+  legend: { code: number; label: string; rgb: [number, number, number] }[];
 }

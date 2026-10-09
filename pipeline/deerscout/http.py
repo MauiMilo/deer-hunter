@@ -29,6 +29,28 @@ def make_session() -> requests.Session:
     return s
 
 
+def _read_capped(resp: Any, max_bytes: int | None, source: str) -> bytes:
+    """Read a response body, refusing anything larger than max_bytes (protects memory)."""
+    if max_bytes is None:
+        return resp.content
+    length = (getattr(resp, "headers", {}) or {}).get("Content-Length")
+    if length and int(length) > max_bytes:
+        raise SourceError(source, f"response too large ({int(length) / 1e6:.0f} MB > {max_bytes / 1e6:.0f} MB cap)")
+    if hasattr(resp, "iter_content"):
+        chunks, total = [], 0
+        for chunk in resp.iter_content(chunk_size=1 << 20):
+            total += len(chunk)
+            if total > max_bytes:
+                resp.close()
+                raise SourceError(source, f"response exceeded the {max_bytes / 1e6:.0f} MB cap")
+            chunks.append(chunk)
+        return b"".join(chunks)
+    body = resp.content
+    if len(body) > max_bytes:
+        raise SourceError(source, f"response exceeded the {max_bytes / 1e6:.0f} MB cap")
+    return body
+
+
 def get_bytes(
     session: Session,
     url: str,
@@ -38,13 +60,21 @@ def get_bytes(
     retries: int = 3,
     backoff: float = 2.0,
     timeout: float = 180.0,
+    max_bytes: int | None = 200_000_000,
     sleep=time.sleep,
 ) -> tuple[bytes, str]:
-    """GET a binary document (raster, XML). Returns (body, content type)."""
+    """GET a binary document (raster, XML). Returns (body, content type).
+
+    Bodies over ``max_bytes`` are refused rather than loaded, so a server that ignores our
+    area limits can't exhaust memory.
+    """
     last_err = "no attempt made"
     for attempt in range(retries):
         try:
-            resp = session.get(url, params=params, timeout=timeout)
+            try:
+                resp = session.get(url, params=params, timeout=timeout, stream=True)
+            except TypeError:  # simple sessions (tests) don't take `stream`
+                resp = session.get(url, params=params, timeout=timeout)
         except requests.RequestException as exc:
             last_err = f"network error: {exc}"
         else:
@@ -55,7 +85,10 @@ def get_bytes(
                 raise SourceError(source, f"HTTP {status} for {url}")
             else:
                 ctype = (getattr(resp, "headers", {}) or {}).get("Content-Type", "")
-                return resp.content, ctype
+                try:
+                    return _read_capped(resp, max_bytes, source), ctype
+                except requests.RequestException as exc:
+                    last_err = f"network error while reading: {exc}"
         if attempt < retries - 1:
             sleep(backoff * (2**attempt))
     raise SourceError(source, f"gave up after {retries} attempts ({last_err})")

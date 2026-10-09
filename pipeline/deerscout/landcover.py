@@ -143,7 +143,8 @@ def _get_coverage(session: Session, base: str, cid: str, b: tuple[float, float, 
         "format": "image/tiff",
         "subset": [f"X({b[0]},{b[2]})", f"Y({b[1]},{b[3]})"],
     }
-    body, ctype = get_bytes(session, base, params, source=SOURCE)
+    # A 1500 x 1500 tile of 8-bit classes is ~2 MB; anything far bigger means the area limit was ignored.
+    body, ctype = get_bytes(session, base, params, source=SOURCE, max_bytes=40_000_000)
     if body[:4] not in (b"II*\x00", b"MM\x00*"):
         snippet = body[:300].decode("utf-8", "replace")
         raise SourceError(SOURCE, f"coverage {cid} returned {ctype or 'non-TIFF'}: {snippet}")
@@ -181,7 +182,9 @@ def fetch(session: Session, bounds_5070: tuple[float, float, float, float]) -> t
     """Newest land cover available for the area. Returns (land cover, notes on what was tried)."""
     tried: list[str] = []
     try:
-        caps, _ = get_bytes(session, DMS_WCS, {"service": "WCS", "version": "2.0.1", "request": "GetCapabilities"}, source=SOURCE)
+        caps, _ = get_bytes(
+            session, DMS_WCS, {"service": "WCS", "version": "2.0.1", "request": "GetCapabilities"}, source=SOURCE, max_bytes=30_000_000
+        )
         pick = pick_annual_coverage(coverage_ids(caps.decode("utf-8", "replace")))
         if pick:
             cid, year = pick

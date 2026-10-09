@@ -88,3 +88,34 @@ export function windFavorsSetup(windFromDeg: number, deerFromDeg: number, tolera
   if (scentToDeer > 45) return "marginal";
   return "bad";
 }
+
+/** Angle between two undirected lines (0-90). */
+export function axisDiff(a: number, b: number): number {
+  const d = angleDiff(a, b);
+  return d > 90 ? 180 - d : d;
+}
+
+export type Fit = "good" | "marginal" | "bad";
+
+/**
+ * Wind at a spot where deer travel along `travelAxisDeg` (a line, 0-180).
+ * A crosswind carries your scent off the travel route; a wind blowing along the route
+ * carries it straight down the trail to approaching deer.
+ */
+export function spotWindFit(windFromDeg: number, travelAxisDeg: number): Fit {
+  const d = axisDiff(windFromDeg, travelAxisDeg);
+  if (d >= 50) return "good";
+  if (d >= 25) return "marginal";
+  return "bad";
+}
+
+/**
+ * Walking in on a heading of `approachBearingDeg`: best with the wind in your face,
+ * worst with it at your back (your scent runs ahead of you to the spot).
+ */
+export function approachFit(windFromDeg: number, approachBearingDeg: number): Fit {
+  const d = angleDiff(windFromDeg, approachBearingDeg);
+  if (d <= 60) return "good";
+  if (d < 120) return "marginal";
+  return "bad";
+}

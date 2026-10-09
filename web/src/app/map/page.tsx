@@ -6,15 +6,19 @@ import { useState } from "react";
 import { useData } from "@/components/DataProvider";
 import type { BaseLayer } from "@/components/MapView";
 import { BASE_LABELS } from "@/components/MapView";
+import { goodWindText } from "@/components/spot-ui";
 import { ScorePill, StatusBadge } from "@/components/ui";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
 export default function MapPage() {
-  const { propertyById, unitById, error } = useData();
+  const { propertyById, unitById, spotById, landcover, error } = useData();
   const [base, setBase] = useState<BaseLayer>("topo");
   const [blocks, setBlocks] = useState(true);
-  const [sel, setSel] = useState<{ property: string; unit: string | null } | null>(null);
+  const [showSpots, setShowSpots] = useState(true);
+  const [lcOn, setLcOn] = useState(false);
+  const [sel, setSel] = useState<{ property: string; unit: string | null; spot?: string | null } | null>(null);
+  const spot = sel?.spot ? spotById.get(sel.spot) : undefined;
 
   const prop = sel ? propertyById.get(sel.property) : undefined;
   const unit = sel?.unit ? unitById.get(sel.unit) : undefined;
@@ -29,6 +33,14 @@ export default function MapPage() {
         showBlocks={blocks}
         highlightPropertyId={sel?.property ?? null}
         highlightUnitId={sel?.unit ?? null}
+        highlightSpotId={sel?.spot ?? null}
+        showSpots={showSpots}
+        landcover={landcover}
+        showLandcover={lcOn}
+        onSelectSpot={(id) => {
+          const sp = spotById.get(id);
+          if (sp) setSel({ property: sp.property_id, unit: sp.unit_id, spot: id });
+        }}
         onSelectProperty={(id) => setSel({ property: id, unit: null })}
         onSelectUnit={(id) => {
           const u = unitById.get(id);
@@ -54,10 +66,22 @@ export default function MapPage() {
           <Legend color="#2fbf71" label="Allowed" />
           <Legend color="#e3b341" label="Unverified" />
           <Legend color="#e5534b" label="No access" />
-          <label className="ml-1 flex items-center gap-1.5">
+        </div>
+        <div className="pointer-events-auto flex items-center gap-3 rounded-xl bg-surface/95 px-3 py-2 text-xs shadow ring-1 ring-line backdrop-blur">
+          <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={blocks} onChange={(e) => setBlocks(e.target.checked)} className="accent-[var(--blaze)]" />
             Blocks
           </label>
+          <label className="flex items-center gap-1.5">
+            <input type="checkbox" checked={showSpots} onChange={(e) => setShowSpots(e.target.checked)} className="accent-[var(--blaze)]" />
+            Spots
+          </label>
+          {landcover && (
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={lcOn} onChange={(e) => setLcOn(e.target.checked)} className="accent-[var(--blaze)]" />
+              Land cover {landcover.year ? `(${landcover.year})` : ""}
+            </label>
+          )}
         </div>
         {error && <div className="pointer-events-auto rounded-lg bg-bad/90 px-3 py-2 text-sm text-white">{error}</div>}
       </div>
@@ -81,6 +105,12 @@ export default function MapPage() {
               {shownUnit && <ScorePill value={shownUnit.score.score} provisional={shownUnit.score.provisional} label="Quality" />}
             </div>
           </div>
+          {spot && (
+            <p className="mt-2 text-sm">
+              <span className="font-medium">{spot.kind === "saddle" ? "Saddle" : "Bench"}</span> · spot score {spot.score} · best winds from{" "}
+              {goodWindText(spot)}
+            </p>
+          )}
           {!unit && prop.unit_ids.length > 1 && <p className="mt-2 text-xs text-faint">Zoom in and tap a block to pick a specific area.</p>}
           <Link
             href={`/property/?id=${encodeURIComponent(prop.id)}${sel?.unit ? `&unit=${encodeURIComponent(sel.unit)}` : ""}`}

@@ -36,7 +36,8 @@ SOURCE_TRAILS = "NH Recreational Trails"
 NEAR_ROAD_M = 400.0  # roughly a quarter mile
 INTERIOR_M = 800.0  # roughly half a mile
 
-DRIVABLE_OSM = {"motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "service", "track"}
+# Residential streets and service drives are left to the DOT inventory (keeps the download small).
+DRIVABLE_OSM = {"motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "track"}
 GATED_ACCESS = {"private", "no"}
 
 

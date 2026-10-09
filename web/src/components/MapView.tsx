@@ -43,6 +43,11 @@ const STATUS_COLOR = ["match", ["get", "status"], "verified", "#2fbf71", "prohib
 
 interface Props {
   className?: string;
+  landcover?: { coordinates: [[number, number], [number, number], [number, number], [number, number]] } | null;
+  showLandcover?: boolean;
+  showSpots?: boolean;
+  highlightSpotId?: string | null;
+  onSelectSpot?: (id: string) => void;
   base?: BaseLayer;
   fitBbox?: [number, number, number, number] | null;
   center?: [number, number];
@@ -65,17 +70,22 @@ export default function MapView({
   highlightUnitId = null,
   showBlocks = true,
   showLocate = true,
+  landcover = null,
+  showLandcover = false,
+  showSpots = true,
+  highlightSpotId = null,
   onSelectProperty,
   onSelectUnit,
+  onSelectSpot,
 }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const handlers = useRef({ onSelectProperty, onSelectUnit });
+  const handlers = useRef({ onSelectProperty, onSelectUnit, onSelectSpot });
   useEffect(() => {
-    handlers.current = { onSelectProperty, onSelectUnit };
-  }, [onSelectProperty, onSelectUnit]);
+    handlers.current = { onSelectProperty, onSelectUnit, onSelectSpot };
+  }, [onSelectProperty, onSelectUnit, onSelectSpot]);
 
   useEffect(() => {
     let disposed = false;
@@ -146,6 +156,8 @@ export default function MapView({
         const click = (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
+          // A tap on a spot dot is handled by the spot layer.
+          if (m.getLayer("spot-dot") && m.queryRenderedFeatures(e.point, { layers: ["spot-dot"] }).length) return;
           // Zoomed in on a big property: a tap picks the block under your finger.
           if (handlers.current.onSelectUnit && m.getZoom() >= 10.5) {
             const block = m.queryRenderedFeatures(e.point, { layers: ["block-hit"] })[0];
@@ -157,6 +169,48 @@ export default function MapView({
           handlers.current.onSelectProperty?.(String(f.properties?.id));
         };
         m.on("click", "prop-fill", click);
+
+        // Scouting spots: saddles and benches picked from the elevation data.
+        m.addSource("spots", { type: "geojson", data: "/data/spots.geojson", promoteId: "id" });
+        m.addLayer({
+          id: "spot-dot",
+          type: "circle",
+          source: "spots",
+          minzoom: 10.5,
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 3.5, 15, 9],
+            "circle-color": ["interpolate", ["linear"], ["get", "score"], 30, "#9aa79f", 60, "#ffb27a", 80, "#ff6b1a"],
+            "circle-stroke-color": "#111",
+            "circle-stroke-width": 1.2,
+          },
+        });
+        m.addLayer({
+          id: "spot-label",
+          type: "symbol",
+          source: "spots",
+          minzoom: 12.5,
+          layout: {
+            "text-field": ["concat", ["match", ["get", "kind"], "saddle", "Saddle ", "Bench "], ["to-string", ["get", "score"]]],
+            "text-font": ["Open Sans Semibold"],
+            "text-size": 11,
+            "text-offset": [0, 1.2],
+            "text-anchor": "top",
+          },
+          paint: { "text-color": "#111", "text-halo-color": "#fff", "text-halo-width": 1.5 },
+        });
+        m.addLayer({
+          id: "spot-hl",
+          type: "circle",
+          source: "spots",
+          filter: ["==", ["get", "id"], ""],
+          paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#ff6b1a", "circle-stroke-width": 3 },
+        });
+        m.on("click", "spot-dot", (e) => {
+          const id = e.features?.[0]?.properties?.id;
+          if (id) handlers.current.onSelectSpot?.(String(id));
+        });
+        m.on("mouseenter", "spot-dot", () => (m.getCanvas().style.cursor = "pointer"));
+        m.on("mouseleave", "spot-dot", () => (m.getCanvas().style.cursor = ""));
         m.on("mouseenter", "prop-fill", () => (m.getCanvas().style.cursor = "pointer"));
         m.on("mouseleave", "prop-fill", () => (m.getCanvas().style.cursor = ""));
         setReady(true);
@@ -176,6 +230,23 @@ export default function MapView({
     if (!m || !ready) return;
     for (const b of ["topo", "imagery", "hillshade"] as const) m.setLayoutProperty(b, "visibility", b === base ? "visible" : "none");
   }, [base, ready]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !landcover) return;
+    if (!m.getSource("landcover")) {
+      m.addSource("landcover", { type: "image", url: "/data/landcover.png", coordinates: landcover.coordinates });
+      m.addLayer({ id: "landcover", type: "raster", source: "landcover", paint: { "raster-opacity": 0.75, "raster-resampling": "nearest" }, layout: { visibility: "none" } }, "prop-fill");
+    }
+    m.setLayoutProperty("landcover", "visibility", showLandcover ? "visible" : "none");
+  }, [landcover, showLandcover, ready]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !m.getLayer("spot-dot")) return;
+    for (const id of ["spot-dot", "spot-label", "spot-hl"]) m.setLayoutProperty(id, "visibility", showSpots ? "visible" : "none");
+    m.setFilter("spot-hl", ["==", ["get", "id"], highlightSpotId ?? ""]);
+  }, [showSpots, highlightSpotId, ready]);
 
   useEffect(() => {
     const m = map.current;

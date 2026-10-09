@@ -7,7 +7,8 @@
 import type { ConditionsResult } from "./conditions";
 import { haversineMiles, roughDriveMinutes } from "./geo";
 import { seasonStatus, type SeasonStatus } from "./seasons";
-import type { Catalog, Method, Property, Regulations, Unit } from "./types";
+import { bestSpot, type SpotEval } from "./spots";
+import type { Catalog, Method, Property, Regulations, Spot, Unit } from "./types";
 
 export interface TripWeights {
   quality: number;
@@ -25,6 +26,7 @@ export interface RankInput {
   origin: [number, number] | null;
   includeUnknown: boolean;
   conditionsFor?: (u: Unit) => ConditionsResult | null;
+  spotsFor?: (u: Unit) => Spot[];
   weights?: TripWeights;
   factorWeights?: Record<string, number>;
 }
@@ -38,6 +40,10 @@ export interface Ranked {
   miles: number | null;
   driveMin: number | null;
   travel: number | null;
+  best: SpotEval | null;
+  /** Day's conditions after checking whether any spot suits the wind. */
+  dayValue: number | null;
+  windNote: string | null;
   trip: number;
   parts: { label: string; value: number; weight: number }[];
 }
@@ -112,18 +118,26 @@ export function rank(input: RankInput): RankOutput {
     }
     const quality = reweight(unit, input.factorWeights);
     const conditions = input.conditionsFor?.(unit) ?? null;
+    const unitSpots = input.spotsFor?.(unit) ?? [];
+    const best = unitSpots.length ? bestSpot(unitSpots, conditions?.wind.fromDeg ?? null) : null;
+    let dayValue = conditions ? conditions.score : null;
+    let windNote: string | null = null;
+    if (conditions && best && best.windFit === "bad") {
+      dayValue = Math.max(0, (dayValue ?? 0) - 15);
+      windNote = "None of this area's scouting spots suit the forecast wind.";
+    }
     const miles = input.origin ? haversineMiles(input.origin, unit.point) : null;
     const driveMin = miles === null ? null : roughDriveMinutes(miles);
     const travel = travelScore(driveMin);
 
     const parts: Ranked["parts"] = [];
     if (quality !== null) parts.push({ label: "Property quality", value: quality, weight: w.quality });
-    if (conditions) parts.push({ label: "Day's conditions", value: conditions.score, weight: w.conditions });
+    if (dayValue !== null) parts.push({ label: "Day's conditions", value: dayValue, weight: w.conditions });
     if (travel !== null) parts.push({ label: "Travel", value: travel, weight: w.travel });
     const den = parts.reduce((a, p) => a + p.weight, 0);
     const trip = den > 0 ? parts.reduce((a, p) => a + p.value * p.weight, 0) / den : 0;
 
-    ranked.push({ unit, property, season, quality, conditions, miles, driveMin, travel, trip, parts });
+    ranked.push({ unit, property, season, quality, conditions, miles, driveMin, travel, best, dayValue, windNote, trip, parts });
   }
 
   ranked.sort((a, b) => {

@@ -91,3 +91,13 @@ def test_non_json_response_raises():
     s = FakeSession(lambda u, p: FakeResponse(ValueError("not json")))
     with pytest.raises(SourceError, match="not JSON"):
         get_json(s, LAYER, source="test")
+
+
+def test_oversized_download_is_refused(no_sleep):
+    from deerscout.http import get_bytes
+
+    big = FakeSession(lambda u, p: FakeResponse(content=b"x" * 5000, ctype="image/tiff"))
+    with pytest.raises(SourceError, match="cap"):
+        get_bytes(big, LAYER, source="test", max_bytes=1000, sleep=no_sleep)
+    ok, ctype = get_bytes(big, LAYER, source="test", max_bytes=10_000, sleep=no_sleep)
+    assert len(ok) == 5000 and ctype == "image/tiff"

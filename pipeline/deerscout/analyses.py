@@ -55,9 +55,18 @@ class Context:
         self.manifest["sources"].append({"name": name, "status": status, **extra})
 
 
+def mem_mb() -> float:
+    """Peak memory of this process so far (MB), for the run log."""
+    import resource
+
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+
+
 def guarded(ctx: Context, name: str, fn: Callable[[Context], None], warning: str) -> None:
+    log.info("starting %s (peak memory so far %.0f MB)", name, mem_mb())
     try:
         fn(ctx)
+        log.info("finished %s (peak memory %.0f MB)", name, mem_mb())
     except Exception as e:  # an optional analysis must never sink the whole build
         log.error("%s failed: %s\n%s", name, e, traceback.format_exc())
         ctx.record(name, "failed", error=f"{type(e).__name__}: {e}")

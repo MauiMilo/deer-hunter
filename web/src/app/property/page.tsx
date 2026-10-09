@@ -9,12 +9,14 @@ import { BASE_LABELS, type BaseLayer } from "@/components/MapView";
 import { conditionsAt, forecastFor, useForecast } from "@/components/useForecast";
 import { useSaved } from "@/components/useSaved";
 import { useSettings } from "@/components/useSettings";
+import { SpotCard, WindRose } from "@/components/spot-ui";
 import { Card, Chip, FactorList, Notice, ScorePill, SectionTitle, Sources, StatusBadge, WindArrow } from "@/components/ui";
 import type { Window } from "@/lib/conditions";
 import { addDays, labelDay, monthDay, ymdInTz } from "@/lib/dates";
 import { METHOD_LABELS, seasonStatus } from "@/lib/seasons";
 import { formatClock } from "@/lib/sun";
-import type { Property, Unit } from "@/lib/types";
+import { evaluateSpot } from "@/lib/spots";
+import type { Property, Spot, Unit, WindHistory } from "@/lib/types";
 import { compassName, downwind } from "@/lib/wind";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
@@ -30,7 +32,8 @@ export default function PropertyPage() {
 function PropertyInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const { propertyById, unitById, catalog, regs, loading } = useData();
+  const { propertyById, unitById, spotById, catalog, regs, loading, windHistory } = useData();
+  const [focusSpot, setFocusSpot] = useState<Spot | null>(null);
   const [settings] = useSettings();
   const id = params.get("id") ?? "";
   const prop = propertyById.get(id);
@@ -47,6 +50,14 @@ function PropertyInner() {
     [prop, unitById],
   );
   const unit = unitById.get(params.get("unit") ?? "") ?? units[0];
+  const unitPoints = useMemo(() => (unit ? [unit.point] : []), [unit]);
+  const fc = useForecast(unitPoints);
+  const dayWind =
+    unit && regs ? conditionsAt(forecastFor(fc.byKey, unit.point), unit.point, day, window, regs).conditions?.wind.fromDeg ?? null : null;
+  const unitSpots = useMemo(
+    () => (unit?.spot_ids ?? []).map((id) => spotById.get(id)).filter((x): x is Spot => !!x),
+    [unit, spotById],
+  );
 
   const setParam = (k: string, v: string) => {
     const p = new URLSearchParams(params.toString());
@@ -69,7 +80,16 @@ function PropertyInner() {
   return (
     <div>
       <Header prop={prop} />
-      <PropertyMap prop={prop} unit={unit} onUnit={(uid) => setParam("unit", uid)} />
+      <PropertyMap
+        prop={prop}
+        unit={unit}
+        focusSpot={focusSpot}
+        onUnit={(uid) => {
+          setFocusSpot(null);
+          setParam("unit", uid);
+        }}
+        onSpot={(id) => setFocusSpot(spotById.get(id) ?? null)}
+      />
 
       <div className="px-4">
         {units.length > 1 && (
@@ -86,7 +106,19 @@ function PropertyInner() {
         )}
 
         <AccessSection prop={prop} />
-        {unit && <DaySection unit={unit} day={day} window={window} today={today} onDay={(d) => setParam("date", d)} />}
+        {unit && <DaySection unit={unit} day={day} window={window} today={today} fc={fc} onDay={(d) => setParam("date", d)} />}
+        {unit && (
+          <SpotsSection
+            spots={unitSpots}
+            windFromDeg={dayWind}
+            focus={focusSpot}
+            onShow={(sp) => {
+              setFocusSpot(sp);
+              globalThis.scrollTo?.({ top: 0, behavior: "smooth" });
+            }}
+          />
+        )}
+        {unit && windHistory && <WindHistorySection history={windHistory} point={unit.point} day={day} />}
         {unit && (
           <>
             <SectionTitle right={<ScorePill value={unit.score.score} provisional={unit.score.provisional} />}>
@@ -141,9 +173,27 @@ function Header({ prop }: { prop: Property }) {
   );
 }
 
-function PropertyMap({ prop, unit, onUnit }: { prop: Property; unit?: Unit; onUnit: (id: string) => void }) {
+function PropertyMap({
+  prop,
+  unit,
+  focusSpot,
+  onUnit,
+  onSpot,
+}: {
+  prop: Property;
+  unit?: Unit;
+  focusSpot: Spot | null;
+  onUnit: (id: string) => void;
+  onSpot: (id: string) => void;
+}) {
+  const { landcover } = useData();
   const [base, setBase] = useState<BaseLayer>("topo");
-  const bbox = unit?.is_block ? unit.bbox : prop.bbox;
+  const [lcOn, setLcOn] = useState(false);
+  const bbox: [number, number, number, number] = focusSpot
+    ? [focusSpot.point[0] - 0.006, focusSpot.point[1] - 0.004, focusSpot.point[0] + 0.006, focusSpot.point[1] + 0.004]
+    : unit?.is_block
+      ? unit.bbox
+      : prop.bbox;
   return (
     <div className="relative">
       <MapView
@@ -152,7 +202,11 @@ function PropertyMap({ prop, unit, onUnit }: { prop: Property; unit?: Unit; onUn
         fitBbox={bbox}
         highlightPropertyId={prop.id}
         highlightUnitId={unit?.is_block ? unit.id : null}
+        highlightSpotId={focusSpot?.id ?? null}
+        landcover={landcover}
+        showLandcover={lcOn}
         onSelectUnit={(id) => id.startsWith(`${prop.id}~`) && onUnit(id)}
+        onSelectSpot={onSpot}
       />
       <div className="absolute left-3 top-3 flex overflow-hidden rounded-lg bg-surface/95 text-xs shadow ring-1 ring-line">
         {(Object.keys(BASE_LABELS) as BaseLayer[]).map((b) => (
@@ -160,6 +214,11 @@ function PropertyMap({ prop, unit, onUnit }: { prop: Property; unit?: Unit; onUn
             {BASE_LABELS[b]}
           </button>
         ))}
+        {landcover && (
+          <button type="button" onClick={() => setLcOn((v) => !v)} className={`min-h-9 px-2.5 font-medium ${lcOn ? "bg-blaze text-blaze-ink" : ""}`} aria-pressed={lcOn}>
+            Cover
+          </button>
+        )}
       </div>
     </div>
   );
@@ -212,11 +271,23 @@ function AccessSection({ prop }: { prop: Property }) {
   );
 }
 
-function DaySection({ unit, day, window, today, onDay }: { unit: Unit; day: string; window: Window; today: string; onDay: (d: string) => void }) {
+function DaySection({
+  unit,
+  day,
+  window,
+  today,
+  fc,
+  onDay,
+}: {
+  unit: Unit;
+  day: string;
+  window: Window;
+  today: string;
+  fc: ReturnType<typeof useForecast>;
+  onDay: (d: string) => void;
+}) {
   const { regs } = useData();
   const [settings] = useSettings();
-  const points = useMemo(() => [unit.point], [unit.point]);
-  const fc = useForecast(points);
   if (!regs) return null;
   const forecast = forecastFor(fc.byKey, unit.point);
   const season = seasonStatus(regs, day, settings.method, unit.wmu.units);
@@ -354,6 +425,83 @@ function SavedNote({ prop }: { prop: Property }) {
         placeholder="Sign, scrapes, where you parked… (stays on this phone)"
         className="w-full rounded-2xl bg-surface p-3 text-[15px] ring-1 ring-line placeholder:text-faint"
       />
+    </>
+  );
+}
+
+function SpotsSection({
+  spots,
+  windFromDeg,
+  focus,
+  onShow,
+}: {
+  spots: Spot[];
+  windFromDeg: number | null;
+  focus: Spot | null;
+  onShow: (s: Spot) => void;
+}) {
+  const sorted = [...spots].sort((a, b) => evaluateSpot(b, windFromDeg).dayScore - evaluateSpot(a, windFromDeg).dayScore);
+  return (
+    <>
+      <SectionTitle right={<span className="text-xs text-faint">{windFromDeg === null ? "no forecast wind" : "ranked for this day's wind"}</span>}>
+        Scouting spots
+      </SectionTitle>
+      {sorted.length === 0 ? (
+        <Card className="p-4 text-sm text-muted">
+          No saddles or benches stood out in the elevation data here. On flatter ground, deer travel tends to follow cover edges, wetland margins and
+          streams instead; check the land cover layer.
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {sorted.map((sp, i) => (
+            <SpotCard key={sp.id} spot={sp} rank={i + 1} windFromDeg={windFromDeg} selected={focus?.id === sp.id} onShow={() => onShow(sp)} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function nearestRose(history: WindHistory, point: [number, number]) {
+  let best: { key: string; d: number } | null = null;
+  for (const [key, p] of Object.entries(history.points)) {
+    const d = (p.lat - point[1]) ** 2 + ((p.lon - point[0]) * Math.cos((point[1] * Math.PI) / 180)) ** 2;
+    if (!best || d < best.d) best = { key, d };
+  }
+  return best ? history.points[best.key] : null;
+}
+
+const MONTH_NAMES: Record<string, string> = { "9": "September", "10": "October", "11": "November", "12": "December" };
+
+function WindHistorySection({ history, point, day }: { history: WindHistory; point: [number, number]; day: string }) {
+  const p = nearestRose(history, point);
+  const month = String(Number(day.slice(5, 7)));
+  const m = p?.seasons[month] ?? p?.seasons["11"];
+  if (!p || !m) return null;
+  const label = MONTH_NAMES[month] ?? "November";
+  return (
+    <>
+      <SectionTitle>Usual {label} winds</SectionTitle>
+      <Card className="p-4">
+        <div className="grid grid-cols-2 gap-3">
+          {(["morning", "evening"] as const).map((w) =>
+            m[w] ? (
+              <div key={w} className="flex flex-col items-center text-center">
+                <div className="text-sm font-medium">{w === "morning" ? "Mornings" : "Evenings"}</div>
+                <WindRose cell={m[w]!} size={140} />
+                <div className="text-xs text-muted">
+                  Mostly from the {m[w]!.mean_from_deg === null ? "—" : compassName(m[w]!.mean_from_deg!)}
+                  {m[w]!.median_mph !== null && ` · typical ${Math.round(m[w]!.median_mph!)} mph`}
+                  {m[w]!.calm_share !== null && m[w]!.calm_share! > 0.15 && ` · calm ${Math.round(100 * m[w]!.calm_share!)}% of hours`}
+                </div>
+              </div>
+            ) : null,
+          )}
+        </div>
+        <p className="mt-3 text-xs text-faint">
+          {history.period[0].slice(0, 4)}–{history.period[1].slice(0, 4)} hourly model winds near here (Open-Meteo). {history.note}
+        </p>
+      </Card>
     </>
   );
 }
