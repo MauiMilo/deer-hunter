@@ -1,51 +1,12 @@
 INFO tracts in region: 719
 INFO starting USGS NLCD land cover (peak memory so far 186 MB)
-INFO finished USGS NLCD land cover (peak memory 355 MB)
-INFO starting Roads and trails (peak memory so far 355 MB)
-INFO DOT roads: 6717 segments in 2s
-INFO OpenStreetMap: 7025 ways in 13s
-INFO trails: 3208 lines in 3s
-INFO road network indexed and distance grid built in 1s (peak memory 750 MB)
-INFO road signals for 993 units in 2s
-INFO finished Roads and trails (peak memory 750 MB)
-INFO starting USGS 3DEP elevation (peak memory so far 750 MB)
-INFO terrain tile 1: 3 units, 140 features, peak memory 750 MB
-INFO terrain tile 2: 11 units, 204 features, peak memory 750 MB
-INFO terrain tile 3: 10 units, 276 features, peak memory 750 MB
-INFO terrain tile 4: 7 units, 131 features, peak memory 750 MB
-ERROR USGS 3DEP elevation failed: USGS 3DEP elevation: gave up after 3 attempts (HTTP 502)
-Traceback (most recent call last):
-  File "/home/runner/work/deer-hunter/deer-hunter/pipeline/deerscout/analyses.py", line 68, in guarded
-    fn(ctx)
-  File "/home/runner/work/deer-hunter/deer-hunter/pipeline/deerscout/analyses.py", line 199, in run_terrain
-    dem = terrain.fetch_dem(ctx.session, b, res_m=DEM_RES_M, cache_dir=dem_cache)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/deer-hunter/deer-hunter/pipeline/deerscout/terrain.py", line 90, in fetch_dem
-    body, ctype = get_bytes(session, IMAGE_SERVER, params, source=SOURCE, timeout=300, max_bytes=8 * w * h + 1_000_000)
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/deer-hunter/deer-hunter/pipeline/deerscout/http.py", line 94, in get_bytes
-    raise SourceError(source, f"gave up after {retries} attempts ({last_err})")
-deerscout.http.SourceError: USGS 3DEP elevation: gave up after 3 attempts (HTTP 502)
-
-INFO starting Open-Meteo historical weather (peak memory so far 750 MB)
-INFO finished Open-Meteo historical weather (peak memory 750 MB)
-INFO wrote properties.geojson (442.2 KB)
-INFO wrote blocks.geojson (392.9 KB)
-INFO wrote spots.geojson (0.0 KB)
-INFO wrote catalog.json (2856.9 KB)
-INFO wrote regulations.json (3.1 KB)
-INFO wrote manifest.json (2.9 KB)
-WARNING Elevation data unavailable; terrain and spots aren't scored this run.
-{
-  "tracts": 719,
-  "properties": 297,
-  "units": 1008,
-  "blocks": 733,
-  "spots": 0,
-  "access_status": {
-    "unknown": 229,
-    "verified": 53,
-    "prohibited": 15
-  },
-  "total_acres": 670473
-}
+INFO finished USGS NLCD land cover (peak memory 352 MB)
+INFO starting Roads and trails (peak memory so far 352 MB)
+INFO DOT roads: 6717 segments in 11s
+INFO OpenStreetMap: 7025 ways in 5s
+INFO trails: 3208 lines in 4s
+INFO road network indexed and distance grid built in 1s (peak memory 748 MB)
+INFO road signals for 993 units in 4s
+INFO finished Roads and trails (peak memory 748 MB)
+INFO starting USGS 3DEP elevation (peak memory so far 748 MB)
+INFO terrain tile 1: 3 units, 6 features (download 32s, analysis 0s, peak memory 748 MB)
