@@ -192,3 +192,12 @@ describe("spots and wind", () => {
     expect(other.dayValue).toBe(100);
   });
 });
+
+describe("temperature", () => {
+  const h = (tempF: number) => ({ t: 0, tempF, precipIn: 0, code: 1, windMph: 5, windFromDeg: 300, gustMph: 8 });
+  it("docks warm afternoons a little and hot ones more", () => {
+    expect(scoreConditions([h(60)])!.score).toBe(100);
+    expect(scoreConditions([h(68)])!.score).toBe(95);
+    expect(scoreConditions([h(75)])!.score).toBe(90);
+  });
+});

@@ -175,6 +175,11 @@ export default function HuntPage() {
                 {fc.loading ? "Getting the forecast…" : fc.error ?? "No forecast for this day yet (forecasts reach 7 days out)."}
               </p>
             )}
+            {day.slice(5) >= "11-12" && day.slice(5) <= "12-06" && (
+              <p className="mt-2 text-sm text-info">
+                Peak breeding season: Fish and Game says most breeding happens in the three weeks from mid-November, when bucks move more in daylight.
+              </p>
+            )}
             {headline.conditions?.safety.map((s) => (
               <p key={s} className="mt-2 text-sm text-bad">
                 ⚠ {s}

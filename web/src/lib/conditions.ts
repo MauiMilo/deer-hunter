@@ -80,7 +80,8 @@ export function scoreConditions(hours: Hour[]): ConditionsResult | null {
       add("Extreme cold", -10, `Low near ${Math.round(lo)}°F.`);
       safety.push(`Temperatures below 0°F: frostbite risk on a long sit.`);
     }
-    if (hi > 70) add("Unseasonably warm", -10, `High near ${Math.round(hi)}°F; daytime deer activity tends to drop in heat.`);
+    if (hi > 72) add("Unseasonably warm", -10, `High near ${Math.round(hi)}°F; deer activity tends to drop in warm weather.`);
+    else if (hi > 65) add("Warm", -5, `High near ${Math.round(hi)}°F; deer activity tends to drop above the low 60s.`);
   }
 
   const score = Math.max(0, Math.min(100, 100 + parts.reduce((a, p) => a + p.delta, 0)));
