@@ -3,3 +3,5 @@ ok https://prd-tnm.s3.amazonaws.com/?prefix=StagedProducts/Elevation/13/TIFF/cur
 ok https://prd-tnm.s3.amazonaws.com/?prefix=StagedProducts/Elevation/13/TIFF/current/n45w072/&max-keys=20
 ok https://prd-tnm.s3.amazonaws.com/?prefix=StagedProducts/Elevation/13/TIFF/current/n46w071/&max-keys=20
 ok https://prd-tnm.s3.amazonaws.com/?prefix=StagedProducts/Elevation/1m/Projects/NH_&delimiter=/&max-keys=200
+ok https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n46w072/USGS_13_n46w072.tif
+ok https://dmsdata.cr.usgs.gov/geoserver/mrlc_Land-Cover-Native_conus_year_data/wcs?service=WCS&version=2.0.1&request=DescribeCoverage&coverageId=mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data

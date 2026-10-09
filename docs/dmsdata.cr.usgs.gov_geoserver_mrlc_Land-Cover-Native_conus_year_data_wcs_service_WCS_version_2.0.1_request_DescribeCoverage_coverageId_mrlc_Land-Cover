@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?><wcs:CoverageDescriptions xmlns:wcs="http://www.opengis.net/wcs/2.0" xmlns:ows="http://www.opengis.net/ows/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmlcov="http://www.opengis.net/gmlcov/1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:swe="http://www.opengis.net/swe/2.0" xmlns:wcsgs="http://www.geoserver.org/wcsgs/2.0" xsi:schemaLocation=" http://www.opengis.net/wcs/2.0 http://schemas.opengis.net/wcs/2.0/wcsDescribeCoverage.xsd http://www.geoserver.org/wcsgs/2.0 https://dmsdata.cr.usgs.gov/geoserver/schemas/wcs/2.0/wcsgs.xsd">
+  <wcs:CoverageDescription gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data">
+    <gml:description>Generated from ImageMosaic</gml:description>
+    <gml:name>Land-Cover-Native_conus_year_data</gml:name>
+    <gml:boundedBy>
+      <gml:EnvelopeWithTimePeriod srsName="http://www.opengis.net/def/crs/EPSG/0/5070" axisLabels="X Y time" uomLabels="m m s" srsDimension="2">
+        <gml:lowerCorner>-2415585.0 164805.0</gml:lowerCorner>
+        <gml:upperCorner>2384415.0 3314805.0</gml:upperCorner>
+        <gml:beginPosition>1985-01-01T00:00:00.000Z</gml:beginPosition>
+        <gml:endPosition>2025-01-01T00:00:00.000Z</gml:endPosition>
+      </gml:EnvelopeWithTimePeriod>
+    </gml:boundedBy>
+    <wcs:CoverageId>mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data</wcs:CoverageId>
+    <gml:coverageFunction>
+      <gml:GridFunction>
+        <gml:sequenceRule axisOrder="+1 +2">Linear</gml:sequenceRule>
+        <gml:startPoint>0 0</gml:startPoint>
+      </gml:GridFunction>
+    </gml:coverageFunction>
+    <gmlcov:metadata>
+      <gmlcov:Extension>
+        <ows:Keywords>
+          <ows:Keyword>Land-Cover-Native_conus_year_data</ows:Keyword>
+          <ows:Keyword>WCS</ows:Keyword>
+          <ows:Keyword>ImageMosaic</ows:Keyword>
+        </ows:Keywords>
+        <wcsgs:TimeDomain xmlns:wcsgs="http://www.geoserver.org/wcsgs/2.0" default="2025-01-01T00:00:00.000Z">
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_0">
+            <gml:timePosition>1985-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_1">
+            <gml:timePosition>1986-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_2">
+            <gml:timePosition>1987-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_3">
+            <gml:timePosition>1988-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_4">
+            <gml:timePosition>1989-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_5">
+            <gml:timePosition>1990-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_6">
+            <gml:timePosition>1991-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_7">
+            <gml:timePosition>1992-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_8">
+            <gml:timePosition>1993-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_9">
+            <gml:timePosition>1994-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_10">
+            <gml:timePosition>1995-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_11">
+            <gml:timePosition>1996-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_12">
+            <gml:timePosition>1997-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_13">
+            <gml:timePosition>1998-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_14">
+            <gml:timePosition>1999-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_15">
+            <gml:timePosition>2000-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_16">
+            <gml:timePosition>2001-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_17">
+            <gml:timePosition>2002-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_18">
+            <gml:timePosition>2003-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_19">
+            <gml:timePosition>2004-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_20">
+            <gml:timePosition>2005-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_21">
+            <gml:timePosition>2006-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_22">
+            <gml:timePosition>2007-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_23">
+            <gml:timePosition>2008-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_24">
+            <gml:timePosition>2009-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_25">
+            <gml:timePosition>2010-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_26">
+            <gml:timePosition>2011-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_27">
+            <gml:timePosition>2012-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_28">
+            <gml:timePosition>2013-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_29">
+            <gml:timePosition>2014-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_30">
+            <gml:timePosition>2015-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_31">
+            <gml:timePosition>2016-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_32">
+            <gml:timePosition>2017-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_33">
+            <gml:timePosition>2018-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_34">
+            <gml:timePosition>2019-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_35">
+            <gml:timePosition>2020-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_36">
+            <gml:timePosition>2021-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_37">
+            <gml:timePosition>2022-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_38">
+            <gml:timePosition>2023-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_39">
+            <gml:timePosition>2024-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+          <gml:TimeInstant gml:id="mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data_td_40">
+            <gml:timePosition>2025-01-01T00:00:00.000Z</gml:timePosition>
+          </gml:TimeInstant>
+        </wcsgs:TimeDomain>
+      </gmlcov:Extension>
+    </gmlcov:metadata>
+    <gml:domainSet>
+      <gml:RectifiedGrid gml:id="grid00__mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data" dimension="2">
+        <gml:limits>
+          <gml:GridEnvelope>
+            <gml:low>0 0</gml:low>
+            <gml:high>159999 104999</gml:high>
+          </gml:GridEnvelope>
+        </gml:limits>
+        <gml:axisLabels>i j</gml:axisLabels>
+        <gml:origin>
+          <gml:Point gml:id="p00_mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data" srsName="http://www.opengis.net/def/crs/EPSG/0/5070">
+            <gml:pos>-2415585.0 3314805.0</gml:pos>
+          </gml:Point>
+        </gml:origin>
+        <gml:offsetVector srsName="http://www.opengis.net/def/crs/EPSG/0/5070">29.999999995403137 0.0</gml:offsetVector>
+        <gml:offsetVector srsName="http://www.opengis.net/def/crs/EPSG/0/5070">0.0 -30.000000026127967</gml:offsetVector>
+      </gml:RectifiedGrid>
+    </gml:domainSet>
+    <gmlcov:rangeType>
+      <swe:DataRecord xmlns:swe="http://www.opengis.net/swe/2.0">
+        <swe:field name="PALETTE_INDEX">
+          <swe:Quantity>
+            <swe:description>PALETTE_INDEX</swe:description>
+            <swe:nilValues>
+              <swe:NilValues>
+                <swe:nilValue reason="http://www.opengis.net/def/nil/OGC/0/unknown">250.0</swe:nilValue>
+              </swe:NilValues>
+            </swe:nilValues>
+            <swe:uom code="W.m-2.Sr-1"/>
+            <swe:constraint>
+              <swe:AllowedValues>
+                <swe:interval>0 255</swe:interval>
+              </swe:AllowedValues>
+            </swe:constraint>
+          </swe:Quantity>
+        </swe:field>
+      </swe:DataRecord>
+    </gmlcov:rangeType>
+    <wcs:ServiceParameters>
+      <wcs:CoverageSubtype>RectifiedGridCoverage</wcs:CoverageSubtype>
+      <wcs:nativeFormat>image/tiff</wcs:nativeFormat>
+    </wcs:ServiceParameters>
+  </wcs:CoverageDescription>
+</wcs:CoverageDescriptions>
