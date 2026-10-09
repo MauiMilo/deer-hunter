@@ -36,9 +36,11 @@ def feature(geom, **props) -> dict[str, Any]:
 
 
 class FakeResponse:
-    def __init__(self, payload: Any, status: int = 200):
+    def __init__(self, payload: Any = None, status: int = 200, content: bytes | None = None, ctype: str = "application/json"):
         self._payload = payload
         self.status_code = status
+        self.content = content if content is not None else json.dumps(payload).encode()
+        self.headers = {"Content-Type": ctype}
 
     def json(self):
         if isinstance(self._payload, Exception):

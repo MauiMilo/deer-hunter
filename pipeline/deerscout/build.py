@@ -22,7 +22,7 @@ import geopandas as gpd
 import pandas as pd
 import yaml
 
-from . import __version__, granit, tiger, units, wmu
+from . import __version__, analyses, factors, granit, tiger, units, wmu
 from .access import AccessRules
 from .arcgis import FetchResult, query_geojson
 from .config import (
@@ -123,8 +123,27 @@ def _bbox(geom) -> list[float]:
     return [round(v, 5) for v in geom.bounds]
 
 
-def build(region: Region, *, session: Session | None = None, out_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
+def load_abundance() -> dict[str, dict[str, Any]]:
+    """WMU-level harvest indices (data/abundance.yaml), if that file has been filled in from a source."""
+    path = DATA_DIR / "abundance.yaml"
+    if not path.exists():
+        return {}
+    doc = yaml.safe_load(path.read_text()) or {}
+    out = {}
+    for row in doc.get("wmus") or []:
+        out[str(row["wmu"])] = {**row, "source": doc.get("source")}
+    return out
+
+
+def build(
+    region: Region,
+    *,
+    session: Session | None = None,
+    out_dir: Path = OUTPUT_DIR,
+    skip: set[str] = frozenset(),
+) -> dict[str, Any]:
     session = session or make_session()
+    factors.install()
     started = _now()
     manifest: dict[str, Any] = {
         "pipeline_version": __version__,
@@ -195,6 +214,29 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
         wmu_results = [wmu.lookup(t).to_dict() for t in unit_gdf["town"]]
     unit_gdf["wmu"] = wmu_results
 
+    # Legal status first: prohibited land isn't worth analyzing further.
+    access_by_prop = {}
+    for _, p in props.iterrows():
+        attrs = {k: _clean(p.get(k)) for k in granit.decode({}).keys()}
+        access_by_prop[p["id"]] = rules.evaluate({**attrs, "name": p["name"], "parent_name": attrs.get("parent_name")}).to_dict()
+    analyze_ids = {
+        uid for uid, pid in zip(unit_gdf["id"], unit_gdf["property_id"]) if access_by_prop[pid]["status"] != "prohibited"
+    }
+
+    # 6. Habitat, access, terrain and wind analyses (each optional)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ctx = analyses.Context(
+        session=session,
+        units_ea=unit_gdf[["id", "property_id", "geometry"]].to_crs(EQUAL_AREA),
+        analyze_ids=analyze_ids,
+        envelope=region.envelope,
+        cache_dir=CACHE_DIR / region.slug,
+        out_dir=out_dir,
+        manifest=manifest,
+    )
+    analyses.run_all(ctx, skip=skip)
+    abundance = load_abundance()
+
     prop_by_id = props.set_index("id")
     unit_records = []
     for _, u in unit_gdf.iterrows():
@@ -203,7 +245,11 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
             "acres": float(u["acres"]),
             "compactness": float(u["compactness"]),
             "boundary_accuracy_code": _clean(p.get("boundary_accuracy_code")),
+            **ctx.signals.get(u["id"], {}),
         }
+        unit_wmu = u["wmu"]["units"]
+        if len(unit_wmu) >= 1 and unit_wmu[0] in abundance:
+            signals["abundance"] = abundance[unit_wmu[0]]
         score = score_unit(signals, cfg).to_dict()
         lon, lat = representative_lonlat(u.geometry)
         unit_records.append(
@@ -225,10 +271,16 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
     for r in unit_records:
         units_by_prop.setdefault(r["property_id"], []).append(r)
 
+    spots_by_unit: dict[str, list[dict]] = {}
+    for sp in ctx.spots:
+        spots_by_unit.setdefault(sp["unit_id"], []).append(sp)
+    for r in unit_records:
+        r["spot_ids"] = [sp["id"] for sp in sorted(spots_by_unit.get(r["id"], []), key=lambda x: -x["score"])]
+
     prop_records = []
     for _, p in props.iterrows():
         attrs = {k: _clean(p.get(k)) for k in granit.decode({}).keys()}
-        access = rules.evaluate({**attrs, "name": p["name"], "parent_name": attrs.get("parent_name")}).to_dict()
+        access = access_by_prop[p["id"]]
         us = units_by_prop.get(p["id"], [])
         scored = [u["score"]["score"] for u in us if u["score"]["score"] is not None]
         lon, lat = representative_lonlat(p.geometry)
@@ -256,8 +308,7 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
             )
         )
 
-    # 6. Write outputs
-    out_dir.mkdir(parents=True, exist_ok=True)
+    # 7. Write outputs
     prop_geoms = _simplified(props)
     prop_index = {r["id"]: r for r in prop_records}
     prop_fc = {
@@ -308,15 +359,37 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
                 "properties": len(prop_records),
                 "units": len(unit_records),
                 "blocks": int(len(blocks)),
+                "spots": len(ctx.spots),
                 "access_status": {k: int(v) for k, v in status_counts.items()},
                 "total_acres": round(sum(r["acres"] for r in prop_records)),
             },
         }
     )
+    if not abundance:
+        manifest["limitations"].append("Regional deer abundance (harvest per square mile) isn't loaded yet, so that factor is skipped.")
     manifest["limitations"] += [
-        "Scores currently use property size and shape only. Land cover, terrain, pressure and deer abundance are not analyzed yet, so every score is provisional.",
         "Overlapping records (for example, a state forest and an easement on the same ground) are listed separately; see each property's overlaps.",
     ]
+
+    status_by_prop = {r["id"]: r["access"]["status"] for r in prop_records}
+    spot_fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "id": i,
+                "geometry": {"type": "Point", "coordinates": sp["point"]},
+                "properties": {
+                    "id": sp["id"],
+                    "kind": sp["kind"],
+                    "score": sp["score"],
+                    "unit_id": sp["unit_id"],
+                    "status": status_by_prop.get(sp["property_id"]),
+                },
+            }
+            for i, sp in enumerate(ctx.spots)
+        ],
+    }
 
     catalog = {
         "generated_at": manifest["finished_at"],
@@ -325,10 +398,12 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
         "scoring": {"weights": cfg["weights"], "provisional_below_coverage": cfg.get("provisional_below_coverage", 0.5)},
         "properties": prop_records,
         "units": unit_records,
+        "spots": ctx.spots,
     }
 
     _write(out_dir / "properties.geojson", prop_fc)
     _write(out_dir / "blocks.geojson", block_fc)
+    _write(out_dir / "spots.geojson", spot_fc)
     _write(out_dir / "catalog.json", _clean(catalog))
     _write(out_dir / "regulations.json", regs)
     _write(out_dir / "manifest.json", _clean(manifest))
@@ -344,10 +419,11 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--region", default="coos", choices=sorted(REGIONS))
     ap.add_argument("--out", type=Path, default=OUTPUT_DIR)
+    ap.add_argument("--skip", default="", help="comma-separated analyses to skip: landcover,roads,terrain,wind")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
-        manifest = build(REGIONS[args.region], out_dir=args.out)
+        manifest = build(REGIONS[args.region], out_dir=args.out, skip={x for x in args.skip.split(",") if x})
     except SourceError as e:
         log.error("required source failed: %s", e)
         return 2

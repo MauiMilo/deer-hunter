@@ -27,7 +27,7 @@ concurrency:
 jobs:
   build-data:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     defaults:
       run:
         working-directory: pipeline
@@ -40,6 +40,12 @@ jobs:
           cache-dependency-path: pipeline/pyproject.toml
       - run: pip install -e ".[dev]"
       - run: pytest -q
+      - name: Reuse downloaded elevation tiles
+        uses: actions/cache@v4
+        with:
+          path: pipeline/.cache/*/dem
+          key: dem-${{ github.run_id }}
+          restore-keys: dem-
       - name: Build data
         shell: bash
         run: |

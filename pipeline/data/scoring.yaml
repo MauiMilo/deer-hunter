@@ -22,3 +22,42 @@ access:
   shape_full: 0.35
   size_share: 0.7
   shape_share: 0.3
+  # How close a drivable road must be (meters from the unit edge) for easy access, and how far is "far".
+  road_easy_m: 300
+  road_far_m: 4000
+  road_share: 0.35
+
+habitat:
+  # Shares of the unit's land area (water excluded) and edge density (meters per hectare).
+  food_low: 0.02        # young regrowth/brush + grass + fields below this: food likely thin
+  food_good: 0.15
+  open_too_much: 0.45   # above this, too open for daytime cover
+  open_max: 0.85
+  forest_low: 0.40
+  forest_good: 0.75
+  edge_low: 5
+  edge_good: 40
+  conifer_low: 0.10     # softwood/mixed share of the forest
+  conifer_good: 0.40
+  dev_low: 0.03
+  dev_high: 0.15
+  parts: {food: 0.30, cover: 0.25, edge: 0.25, conifer: 0.20}
+
+pressure:
+  near_road_weight: 0.55
+  interior_weight: 0.20
+  trail_weight: 0.25
+  interior_full: 0.5    # half the unit beyond a half mile from roads earns full interior credit
+  trail_low: 0.2        # km of mapped trail per square km
+  trail_high: 2.0
+
+terrain:
+  features_per_km2_good: 3   # saddles + benches per square km
+  relief_low: 15             # meters
+  relief_good: 80
+  steep_bad_low: 0.25        # share steeper than 30 degrees where a penalty starts
+  steep_bad_high: 0.6
+
+abundance:
+  low: 0.3    # adult buck kill per square mile
+  high: 2.5

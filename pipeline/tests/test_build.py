@@ -11,6 +11,7 @@ from deerscout.config import COOS, CONSERVATION_LAYER, SQ_METERS_PER_ACRE, TIGER
 from deerscout.wmu import WMU_LAYER
 
 from .conftest import ORIGIN, FakeResponse, FakeSession, feature, to_wgs, square_wgs
+from .fake_services import Services
 
 X0, Y0 = ORIGIN
 COUNTY_SIDE = 20000.0
@@ -70,10 +71,24 @@ def make_world():
     return county, west, east, feats
 
 
-def handler_for(world, fail_towns=False, fail_wmu=False):
+def clhw_center_ea(world):
+    from pyproj import Transformer
+    from shapely.geometry import shape
+
+    feats = world[3]
+    g = shape(feats[1]["geometry"])
+    return Transformer.from_crs("EPSG:4326", "EPSG:5070", always_xy=True).transform(*g.centroid.coords[0])
+
+
+def handler_for(world, fail_towns=False, fail_wmu=False, phase2=True):
     county, west, east, feats = world
+    services = Services(clhw_center_ea(world)) if phase2 else None
 
     def handler(url, params):
+        if services is not None:
+            hit = services.route(url, params)
+            if hit is not None:
+                return hit
         if url == f"{TIGERWEB_COUNTIES}/query":
             if params.get("returnCountOnly") == "true":
                 return FakeResponse({"count": 1})
@@ -168,11 +183,40 @@ def test_end_to_end_outputs(run):
     block_acres = sum(units[u]["acres"] for u in clhw["unit_ids"])
     assert block_acres == pytest.approx(clhw["acres"], rel=0.001)
 
+    status = {p["id"]: p["access"]["status"] for p in catalog["properties"]}
     for u in catalog["units"]:
         s = u["score"]
-        assert s["provisional"] is True
         assert 0 <= s["score"] <= 100
-        assert s["coverage"] == pytest.approx(0.15)
+        if status[u["property_id"]] == "prohibited":
+            # Not analyzed further: only size/shape are known.
+            assert s["coverage"] == pytest.approx(0.15) and s["provisional"]
+        else:
+            # Everything except deer abundance (no harvest data loaded) is scored.
+            assert s["coverage"] == pytest.approx(0.90), u["id"]
+            assert not s["provisional"]
+            missing = [f["key"] for f in s["factors"] if f["value"] is None]
+            assert missing == ["abundance"]
+
+    # Terrain: the fake ridge has a saddle just north of the big easement's center.
+    spots = catalog["spots"]
+    assert spots, "expected scouting spots"
+    saddles = [sp for sp in spots if sp["kind"] == "saddle"]
+    assert saddles
+    sp = max(saddles, key=lambda x: x["score"])
+    assert sp["property_id"] == clhw["id"]
+    assert min(sp["travel_axis_deg"], 180 - sp["travel_axis_deg"]) < 25  # ridge runs E-W, travel N-S
+    assert len(sp["good_winds_from"]) == 2
+    assert sp["reasons"] and sp["confidence"] in ("low", "medium")
+    for u in catalog["units"]:
+        assert all(i in {x["id"] for x in spots} for i in u["spot_ids"])
+    assert len(load("spots.geojson")["features"]) == len(spots)
+
+    lcmeta = load("landcover.json")
+    assert lcmeta["year"] == 2025 and len(lcmeta["coordinates"]) == 4
+    wh = load("wind_history.json")
+    pt = next(iter(wh["points"].values()))
+    oct_am = pt["seasons"]["10"]["morning"]
+    assert abs(oct_am["mean_from_deg"] - 315) < 1
 
     geo = load("properties.geojson")
     assert len(geo["features"]) == len(catalog["properties"])
