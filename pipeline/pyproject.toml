@@ -1,0 +1,29 @@
+[project]
+name = "deerscout"
+version = "0.1.0"
+description = "Data pipeline for Deer Scout: discovers, checks and scores public hunting land in New Hampshire"
+requires-python = ">=3.11"
+dependencies = [
+  "geopandas>=1.0",
+  "shapely>=2.0",
+  "pyproj>=3.6",
+  "rasterio>=1.4",
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "requests>=2.31",
+  "pyyaml>=6.0",
+  "pyogrio>=0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["deerscout*"]

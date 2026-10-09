@@ -1,0 +1,17 @@
+# Your own hunting-permission checks. These override the automatic rules.
+#
+# Add an entry after you confirm a property's rules (town office, posted sign, managing agency).
+# Match on tract_id or parent_id (shown on each property's detail page) or the exact name.
+#
+# Example:
+# verifications:
+#   - match: {parent_id: "005-001  -"}
+#     status: verified          # verified | prohibited | unknown
+#     summary: "Town clerk confirmed hunting allowed; no-shooting zone near the beach."
+#     source_title: "Phone call with Pittsburg town office"
+#     source_url: ""
+#     checked_on: "2026-10-10"
+#     restrictions:
+#       - "No hunting within 300 ft of the town beach."
+
+verifications: []

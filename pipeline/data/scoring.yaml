@@ -1,0 +1,24 @@
+# Property Quality Score settings.
+#
+# These weights are starting engineering assumptions, NOT scientifically validated
+# probabilities. Change them here (or in the app's Settings) as field results come in.
+
+weights:
+  habitat: 0.35     # food, cover, forest mix, young forest, edges
+  pressure: 0.20    # estimated hunting pressure (lower pressure scores higher)
+  terrain: 0.20     # terrain and travel features
+  access: 0.15      # practical huntability: size, shape, how you get in
+  abundance: 0.10   # regional deer abundance indicators
+
+# Below this share of the model's weight, the overall score is marked provisional.
+provisional_below_coverage: 0.5
+
+access:
+  # Bigger blocks give more room to set up away from roads and neighbors, with diminishing returns.
+  size_floor_acres: 20      # at or below this, size contributes 0
+  size_full_acres: 1500     # at or above this, size contributes fully
+  # Polsby-Popper compactness: thin strips are hard to hunt without crossing a boundary.
+  shape_floor: 0.05
+  shape_full: 0.35
+  size_share: 0.7
+  shape_share: 0.3

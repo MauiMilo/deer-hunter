@@ -1,0 +1,88 @@
+# NH deer seasons, Sept 2026 - Aug 2027, for the Wildlife Management Units that cover Coos County.
+#
+# Source: 2026-27 NH Hunting Digest (eRegulations edition, last updated 2026-08-27).
+# The online season table had a garbled layout and was reconstructed; CONFIRM in the printed
+# digest or with NH Fish and Game before relying on a date. The app shows this warning.
+
+season_year: "2026-27"
+verified_against_print: false
+sources:
+  seasons:
+    title: "2026-27 NH Hunting Digest - Deer Hunting Seasons"
+    url: https://www.eregulations.com/newhampshire/hunting/deer-hunting-seasons
+    publisher: NH Fish and Game Department (eRegulations edition)
+    source_date: "2026-08-27"
+    retrieved: "2026-10-08"
+  regulations:
+    title: "2026-27 NH Hunting Digest - Deer Hunting Regulations"
+    url: https://www.eregulations.com/newhampshire/hunting/deer-hunting-regulations
+    publisher: NH Fish and Game Department (eRegulations edition)
+    source_date: "2026-08-27"
+    retrieved: "2026-10-08"
+  wmu_boundaries:
+    title: "2026-27 NH Hunting Digest - Wildlife Management Units"
+    url: https://www.eregulations.com/newhampshire/hunting/wildlife-management-units
+    publisher: NH Fish and Game Department (eRegulations edition)
+    source_date: "2026-08-27"
+    retrieved: "2026-10-08"
+
+legal_hours:
+  rule: "Half an hour before sunrise to half an hour after sunset."
+  before_sunrise_min: 30
+  after_sunset_min: 30
+  source: regulations
+
+# Each season: method, units it applies to, inclusive date range, which deer may be taken.
+seasons:
+  - method: archery
+    units: [A]
+    start: "2026-09-15"
+    end: "2026-12-08"
+    deer: any
+    note: "WMU A archery closes one week earlier than the rest of the state."
+  - method: archery
+    units: [B, C1, C2, D1]
+    start: "2026-09-15"
+    end: "2026-12-15"
+    deer: any
+  - method: youth
+    units: [A, B, C1, C2, D1]
+    start: "2026-10-24"
+    end: "2026-10-25"
+    deer: any
+    note: "Youth hunters only, with a licensed adult."
+  - method: muzzleloader
+    units: [A, B, C1, C2, D1]
+    start: "2026-10-31"
+    end: "2026-11-10"
+    deer: antlered
+  - method: firearm
+    units: [A]
+    start: "2026-11-11"
+    end: "2026-11-11"
+    deer: any
+  - method: firearm
+    units: [A]
+    start: "2026-11-12"
+    end: "2026-11-29"
+    deer: antlered
+  - method: firearm
+    units: [B, C1, C2, D1]
+    start: "2026-11-11"
+    end: "2026-11-11"
+    deer: any
+  - method: firearm
+    units: [B, C1, C2, D1]
+    start: "2026-11-12"
+    end: "2026-12-06"
+    deer: antlered
+
+definitions:
+  antlered: "A deer with at least one antler 3 inches or longer."
+  any: "Any deer, regardless of sex or age."
+
+method_notes:
+  crossbow: "Crossbows are NOT allowed during regular archery season in WMUs A, B, C1, C2 or D1 (only in D2W, G1, G2, H1, H2, I1, I2, J1, J2, K, L, M). Muzzleloader license holders may use a crossbow during muzzleloader season statewide."
+  bag: "Each regular, archery or combination license covers one deer. A Special Archery Deer Permit adds one antlered deer."
+  registration: "Register within 24 hours. Online registration is unavailable the first 2 days of muzzleloader season and first 3 days of firearms season."
+  baiting: "Deer baiting is allowed Oct 21 - Nov 18 in WMUs A through L, with further restrictions, and is banned on some lands (refuges, many state lands without a permit)."

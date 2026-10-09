@@ -1,0 +1,142 @@
+# Hunting-permission rules.
+#
+# A property is labeled "verified" ONLY when a rule below, backed by a cited official source,
+# matches it. Everything else stays "unknown" (a research candidate) or "prohibited".
+#
+# Order matters: the first matching rule wins. Your own checks in verifications.yaml beat
+# every rule here. Property-specific rules come first, then the GRANIT "no public access"
+# flag, then agency-wide rules.
+#
+# Match keys (all listed keys must match):
+#   agency_code: [list of GRANIT PPAGENCY codes]
+#   protection_type_code: [list of GRANIT PPTYPE codes, e.g. FO = fee ownership]
+#   public_access_code: [list of GRANIT ACCESS codes]
+#   name_contains / parent_name_contains: case-insensitive text
+#   name_excludes: list of case-insensitive text; rule is skipped if the name contains any
+
+sources:
+  granit_standard:
+    title: "GRANIT Conservation/Public Lands coding standards (rev. July 2022)"
+    url: https://ftp.granit.unh.edu/d-cons/ConservationLandsStandard.pdf
+    publisher: NH GRANIT / UNH Earth Systems Research Center
+    retrieved: "2026-10-08"
+  res_7301_10:
+    title: "NH Admin. Rules Res 7301.10 - Hunting (DNCR parks and forests)"
+    url: https://regulations.justia.com/states/new-hampshire/res/chapter-res-7300/part-res-7301/section-res-7301-10
+    publisher: NH Dept. of Natural & Cultural Resources (rule text via Justia)
+    retrieved: "2026-10-08"
+  nhfg_state_lands_faq:
+    title: "Hunting on State Lands FAQs"
+    url: https://wildlife.nh.gov/hunting-nh/where-hunt/hunting-state-lands-faqs
+    publisher: NH Fish and Game Department
+    retrieved: "2026-10-08"
+  nhfg_where_to_hunt:
+    title: "Where to Hunt"
+    url: https://wildlife.nh.gov/hunting-nh/where-hunt
+    publisher: NH Fish and Game Department
+    retrieved: "2026-10-08"
+  clhw_rules_sign:
+    title: "Connecticut Lakes Headwaters forest rules (posted sign)"
+    url: https://www.nhstateparks.org/NHStateParks/media/NHStateParks/PDFs/Parks/CT%20Lakes%20Headwaters/clhw_forest_rules_sign_18x24.pdf
+    publisher: NH Division of Parks and Recreation
+    retrieved: "2026-10-08"
+  wmnf_hunting:
+    title: "White Mountain National Forest - Hunting & Shooting"
+    url: https://www.fs.usda.gov/r09/whitemountain/recreation/opportunities/hunting-shooting
+    publisher: USDA Forest Service
+    source_date: "2026-03-24"
+    retrieved: "2026-10-08"
+  umbagog_hunting:
+    title: "Lake Umbagog National Wildlife Refuge - Hunting"
+    url: https://fws.gov/refuge/umbagog/visit-us/activities/hunting
+    publisher: US Fish and Wildlife Service
+    retrieved: "2026-10-08"
+
+# Restrictions that apply everywhere; shown on every property.
+general_restrictions:
+  - text: "Map boundaries are approximate. GRANIT marks this data 'not for legal use'; look for posted boundary lines on the ground."
+    sources: [granit_standard]
+  - text: "No firearm discharge in 'compact zones' (six or more homes each within 300 ft of another, plus a 300 ft buffer). Check local ordinances."
+    sources: [nhfg_state_lands_faq]
+
+rules:
+  - id: clhw-easement
+    status: verified
+    when:
+      parent_name_contains: "Connecticut Lakes Headwaters"
+    summary: "Hunting is permitted with restrictions on the Connecticut Lakes Headwaters forest, per the state's posted forest rules."
+    restrictions:
+      - "Follow Res 7301.10. No firearm discharge within 300 ft of developed recreation areas when occupied."
+      - "No camping and no fires on the property."
+      - "ATVs, trail bikes and snowmobiles only on trails designated by the Bureau of Trails."
+      - "Land is privately owned under a state conservation easement; logging traffic and road conditions change. Respect gates and closures."
+    sources: [clhw_rules_sign, res_7301_10]
+
+  - id: granit-no-public-access
+    status: prohibited
+    when:
+      public_access_code: [3]
+    summary: "GRANIT records public access as not allowed. Treat as off-limits unless you have the landowner's permission."
+    sources: [granit_standard]
+
+  - id: dncr-fee-land
+    status: verified
+    when:
+      agency_code: [31000]
+      protection_type_code: [FO]
+    name_excludes: ["Shieling", "Opechee", "Opeechee", "Urban Forestry", "Robert Frost", "Odiorne"]
+    summary: "State park or forest owned by NH DNCR. State rule Res 7301.10 allows hunting on these properties except a short list of named sites, none in Coos County."
+    restrictions:
+      - "No firearm discharge within 300 ft of occupied developed areas such as campgrounds, beaches and playgrounds."
+      - "Portable tree stands only, Aug 1 - Jan 31, no nails or damage to trees. No permanent stands."
+      - "Baiting only by Fish and Game permit."
+    sources: [res_7301_10, nhfg_state_lands_faq]
+
+  - id: usfs-wmnf
+    status: verified
+    when:
+      agency_code: [22000]
+      protection_type_code: [FO]
+    summary: "White Mountain National Forest land. The Forest Service allows hunting on all WMNF land, including Wilderness, under state regulations."
+    restrictions:
+      - "No discharge within 150 yards of a residence, building, campsite, developed recreation site or occupied area."
+      - "No shooting across or on a Forest Service road or an adjacent body of water."
+      - "Private inholdings inside the forest need landowner permission."
+    sources: [wmnf_hunting]
+
+  - id: usfws-umbagog
+    status: verified
+    when:
+      agency_code: [21000]
+      name_contains: "Umbagog"
+    summary: "Lake Umbagog National Wildlife Refuge. Deer hunting is allowed under NH (or Maine) rules plus refuge rules; the stricter rule applies."
+    restrictions:
+      - "Temporary stands and blinds only: up no earlier than 14 days before the season, down within 14 days after, marked with your license number."
+      - "No baiting. No ATVs or UTVs. Vehicles allowed on logging roads, not skid roads or skidder trails."
+    sources: [umbagog_hunting]
+
+  - id: nhfg-land
+    status: unknown
+    when:
+      agency_code: [32000]
+    summary: "Owned or protected by NH Fish and Game. Fish and Game says most of its land is open, but rules vary by property. Confirm before hunting."
+    sources: [nhfg_where_to_hunt]
+
+  - id: other-federal
+    status: unknown
+    when:
+      agency_code: [20000, 21000, 21100, 21200, 22100, 23000]
+    summary: "Federal land without a property-specific hunting source yet. Check the managing agency's rules."
+    sources: [granit_standard]
+
+  - id: restricted-public-access
+    status: unknown
+    when:
+      public_access_code: [2]
+    summary: "GRANIT says public access is restricted to certain areas, times or members. Hunting permission not confirmed."
+    sources: [granit_standard]
+
+default:
+  status: unknown
+  summary: "No official source checked yet confirms hunting is allowed here. Treat as a research candidate."
+  sources: [granit_standard]
