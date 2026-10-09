@@ -31,7 +31,7 @@ jobs:
           fi
           mkdir -p docs
           for u in $URLS; do
-            name=$(echo "$u" | sed -E 's#^https?://##; s#[^A-Za-z0-9._-]+#_#g' | cut -c1-150)
+            name="$(echo "$u" | sed -E 's#^https?://##; s#[^A-Za-z0-9._-]+#_#g' | cut -c1-100)_$(echo -n "$u" | md5sum | cut -c1-8)"
             curl -fsSL --retry 3 -A "deer-scout/0.1 (reference fetch)" -o "docs/$name" "$u" && echo "ok $u" >> docs/INDEX.txt || echo "FAILED $u" >> docs/INDEX.txt
           done
           git config user.name "deer-scout-data-bot"
