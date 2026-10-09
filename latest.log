@@ -1,10 +1,10 @@
 INFO tracts in region: 719
-INFO starting USGS NLCD land cover (peak memory so far 187 MB)
-INFO finished USGS NLCD land cover (peak memory 336 MB)
-INFO starting Roads and trails (peak memory so far 336 MB)
-INFO DOT roads: 6717 segments in 12s
-INFO OpenStreetMap: 7025 ways in 4s
-INFO trails: 3208 lines in 3s
+INFO starting USGS NLCD land cover (peak memory so far 186 MB)
+INFO finished USGS NLCD land cover (peak memory 337 MB)
+INFO starting Roads and trails (peak memory so far 337 MB)
+INFO DOT roads: 6717 segments in 10s
+INFO OpenStreetMap: 7025 ways in 19s
+INFO trails: 3208 lines in 4s
 INFO road network indexed and distance grid built in 1s (peak memory 756 MB)
 INFO road signals for 993 units in 4s
 INFO finished Roads and trails (peak memory 756 MB)
@@ -96,21 +96,21 @@ INFO terrain tile 83: 12 units, 8 features (download 0s, analysis 0s, peak memor
 ERROR terrain tile at (1904000.0, 2712000.0) skipped: elevation tile is mostly empty
 INFO terrain tile 84: 23 units, 28 features (download 0s, analysis 0s, peak memory 756 MB)
 INFO terrain tile 85: 28 units, 28 features (download 0s, analysis 0s, peak memory 757 MB)
-INFO terrain tile 86: 28 units, 5 features (download 0s, analysis 0s, peak memory 767 MB)
-INFO terrain tile 87: 6 units, 20 features (download 0s, analysis 0s, peak memory 776 MB)
+INFO terrain tile 86: 28 units, 5 features (download 0s, analysis 0s, peak memory 763 MB)
+INFO terrain tile 87: 6 units, 20 features (download 0s, analysis 0s, peak memory 770 MB)
 ERROR terrain tile at (1904000.0, 2720000.0) skipped: elevation tile is mostly empty
 INFO terrain tile 88: 25 units, 5 features (download 0s, analysis 0s, peak memory 776 MB)
-INFO terrain tile 89: 24 units, 41 features (download 0s, analysis 0s, peak memory 783 MB)
-INFO terrain tile 90: 20 units, 23 features (download 0s, analysis 0s, peak memory 784 MB)
+INFO terrain tile 89: 24 units, 41 features (download 0s, analysis 0s, peak memory 780 MB)
+INFO terrain tile 90: 20 units, 23 features (download 0s, analysis 0s, peak memory 786 MB)
 ERROR terrain tile at (1912000.0, 2728000.0) skipped: elevation tile is mostly empty
-INFO terrain tile 91: 7 units, 13 features (download 0s, analysis 0s, peak memory 790 MB)
-INFO finished USGS 3DEP elevation (peak memory 790 MB)
-INFO starting Open-Meteo historical weather (peak memory so far 790 MB)
-INFO finished Open-Meteo historical weather (peak memory 790 MB)
+INFO terrain tile 91: 7 units, 13 features (download 0s, analysis 0s, peak memory 792 MB)
+INFO finished USGS 3DEP elevation (peak memory 792 MB)
+INFO starting Open-Meteo historical weather (peak memory so far 792 MB)
+INFO finished Open-Meteo historical weather (peak memory 792 MB)
 INFO wrote properties.geojson (442.2 KB)
 INFO wrote blocks.geojson (392.9 KB)
 INFO wrote spots.geojson (230.1 KB)
-INFO wrote catalog.json (3753.6 KB)
+INFO wrote catalog.json (3743.1 KB)
 INFO wrote regulations.json (3.1 KB)
 INFO wrote manifest.json (3.1 KB)
 {
