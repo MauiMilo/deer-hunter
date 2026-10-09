@@ -133,6 +133,9 @@ def handler_for(world, fail_towns=False, fail_wmu=False, phase2=True):
 def run(tmp_path, monkeypatch):
     monkeypatch.setattr(build_mod, "CACHE_DIR", tmp_path / "cache")
     monkeypatch.setattr("deerscout.http.time.sleep", lambda s: None)
+    # The fake services stand in for the elevation image service (the S3 files reader has its own test).
+    monkeypatch.setattr("deerscout.analyses.DEM_SOURCE", "imageserver")
+    monkeypatch.setattr("deerscout.analyses.DEM_RES_M", 6.0)
 
     def _run(**kw):
         out = tmp_path / "out"

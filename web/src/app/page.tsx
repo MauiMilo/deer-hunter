@@ -76,7 +76,14 @@ export default function HuntPage() {
     [result, everyBlock],
   );
   const shown = showAll ? list : list.slice(0, 12);
-  const provisional = result?.ranked.some((r) => r.unit.score.provisional);
+  // Which parts of the model are missing for most of what's shown (e.g. terrain not processed yet).
+  const missingFactors = useMemo(() => {
+    const top = shown.slice(0, 12);
+    if (!top.length) return [] as string[];
+    const counts = new Map<string, number>();
+    for (const r of top) for (const f of r.unit.score.factors) if (f.value === null) counts.set(f.label, (counts.get(f.label) ?? 0) + 1);
+    return [...counts.entries()].filter(([, n]) => n > top.length / 2).map(([label]) => label.toLowerCase());
+  }, [shown]);
 
   return (
     <div>
@@ -201,12 +208,9 @@ export default function HuntPage() {
           >
             Best bets
           </SectionTitle>
-          {provisional && (
+          {missingFactors.length > 0 && (
             <div className="mb-3">
-              <Notice>
-                Scores are provisional (<span className="text-warn">*</span>): habitat, terrain, hunting pressure and deer numbers aren&apos;t analyzed yet,
-                so picks mostly reflect verified access, block size, the day&apos;s weather and distance.
-              </Notice>
+              <Notice>Not in these scores yet: {missingFactors.join(", ")}. Each pick&apos;s &ldquo;Why&rdquo; shows what it&apos;s based on.</Notice>
             </div>
           )}
           {result.ranked.length === 0 ? (

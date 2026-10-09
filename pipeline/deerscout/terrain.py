@@ -26,6 +26,9 @@ from .http import Session, SourceError, get_bytes
 
 SOURCE = "USGS 3DEP elevation"
 IMAGE_SERVER = "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage"
+# 1/3 arc-second (~10 m) seamless 3DEP DEM as cloud-optimized GeoTIFFs on USGS's public S3 bucket,
+# one file per 1-degree cell named by its north-west corner (e.g. n46w072 covers 45-46 N, 72-71 W).
+COG_TEMPLATE = "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/{tile}/USGS_13_{tile}.tif"
 NODATA = -9999.0
 
 
@@ -86,6 +89,86 @@ def _fetch_chunk(session: Session, b: tuple[float, float, float, float], w: int,
     if nd is not None:
         arr[arr == nd] = np.nan
     return arr
+
+
+def cog_tile_names(bounds_wgs: tuple[float, float, float, float]) -> list[str]:
+    """1-degree 3DEP tile names covering a lon/lat box."""
+    w, south, e, n = bounds_wgs
+    names = []
+    for north in range(math.floor(south) + 1, math.ceil(n) + 1):
+        for west in range(math.ceil(-e), math.ceil(-w) + 1):
+            if west <= 0:
+                continue
+            names.append(f"n{north:02d}w{west:03d}")
+    return sorted(set(names))
+
+
+def fetch_dem_cog(
+    bounds_5070: tuple[float, float, float, float],
+    res_m: float = 10.0,
+    template: str = COG_TEMPLATE,
+    cache_dir: Path | None = None,
+) -> Dem:
+    """Elevation for a box from the 3DEP 1/3 arc-second cloud-optimized GeoTIFFs.
+
+    GDAL reads only the parts of each 1-degree file the box needs (HTTP range requests),
+    then warps them onto our equal-area grid.
+    """
+    from pyproj import Transformer
+    from rasterio.warp import Resampling, reproject
+
+    minx, miny, maxx, maxy = bounds_5070
+    w = int(round((maxx - minx) / res_m))
+    h = int(round((maxy - miny) / res_m))
+    key = hashlib.sha1(f"cog|{bounds_5070}|{res_m}".encode()).hexdigest()[:16]
+    cached = cache_dir / f"dem_{key}.npy" if cache_dir else None
+    if cached and cached.exists():
+        z = np.load(cached)
+    else:
+        to_ll = Transformer.from_crs("EPSG:5070", "EPSG:4269", always_xy=True)
+        xs, ys = to_ll.transform([minx, maxx, minx, maxx], [miny, miny, maxy, maxy])
+        names = cog_tile_names((min(xs), min(ys), max(xs), max(ys)))
+        dst_tr = from_origin(minx, maxy, res_m, res_m)
+        z = np.full((h, w), np.nan, dtype=np.float32)
+        env = {
+            "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+            "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
+            "GDAL_HTTP_MAX_RETRY": "4",
+            "GDAL_HTTP_RETRY_DELAY": "3",
+            "VSI_CACHE": "TRUE",
+        }
+        got = 0
+        with rasterio.Env(**env):
+            for name in names:
+                url = template.format(tile=name)
+                path = url if not url.startswith("http") else f"/vsicurl/{url}"
+                try:
+                    with rasterio.open(path) as src:
+                        part = np.full((h, w), np.nan, dtype=np.float32)
+                        reproject(
+                            source=rasterio.band(src, 1),
+                            destination=part,
+                            src_nodata=src.nodata,
+                            dst_transform=dst_tr,
+                            dst_crs="EPSG:5070",
+                            dst_nodata=np.nan,
+                            resampling=Resampling.bilinear,
+                        )
+                except rasterio.errors.RasterioIOError as e:
+                    raise SourceError(SOURCE, f"couldn't read {url}: {e}") from e
+                fill = np.isnan(z) & ~np.isnan(part)
+                z[fill] = part[fill]
+                got += 1
+        if got == 0:
+            raise SourceError(SOURCE, "no elevation tiles cover this area")
+        if cached:
+            cached.parent.mkdir(parents=True, exist_ok=True)
+            np.save(cached, z)
+    z = z.copy()
+    z[(z <= -1000) | (z > 9000)] = np.nan
+    if np.isnan(z).mean() > 0.5:
+        raise SourceError(SOURCE, "elevation tile is mostly empty")
+    return Dem(z, from_origin(minx, maxy, res_m, res_m), res_m)
 
 
 def fetch_dem(

@@ -68,7 +68,7 @@ and whether a logging road gate is open this week.
 
 ### Terrain and travel features — *heuristic*
 
-From USGS 3DEP bare-earth elevation (lidar-derived where flown), sampled at 6 m:
+From USGS 3DEP bare-earth elevation (the ~10 m seamless DEM, built from lidar where flown):
 
 - **Saddles**: low points along a ridge, found where the ground curves up one way and down the other
   (negative Gaussian curvature) on gentle slope above the surrounding landscape.

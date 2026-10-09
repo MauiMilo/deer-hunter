@@ -216,3 +216,34 @@ def test_prominence_checks():
     # center of the test grid is the saddle; ridge runs east-west (90 degrees)
     assert terrain.is_prominent_saddle(t.z_smooth, dem.z.shape[0] // 2, c, 90.0, RES)
     assert not terrain.is_prominent_saddle(t.z_smooth, dem.z.shape[0] // 2, c, 0.0, RES)
+
+
+def test_cog_tile_names():
+    # Pittsburg area spans two 1-degree cells west to east and one north to south.
+    assert terrain.cog_tile_names((-71.6, 45.0, -70.9, 45.3)) == ["n46w071", "n46w072"]
+    assert terrain.cog_tile_names((-71.2, 44.9, -71.1, 45.1)) == ["n45w072", "n46w072"]
+
+
+def test_cog_reader_warps_geographic_tiles(tmp_path):
+    # Write two fake 1-degree tiles in NAD83 lon/lat with a known elevation ramp, then read a box
+    # straddling them through the same code path the pipeline uses (local files instead of S3).
+    import rasterio
+    from pyproj import Transformer
+
+    for name, west in (("n46w072", -72.0), ("n46w071", -71.0)):
+        n = 400
+        res = 1.0 / n
+        lon = west + res * (np.arange(n) + 0.5)
+        lat = 46.0 - res * (np.arange(n) + 0.5)
+        LON, LAT = np.meshgrid(lon, lat)
+        z = (300 + 1000 * (LAT - 45.0)).astype(np.float32)  # rises 1000 m per degree north
+        with rasterio.open(tmp_path / f"USGS_13_{name}.tif", "w", driver="GTiff", width=n, height=n, count=1, dtype="float32",
+                           crs="EPSG:4269", transform=from_origin(west, 46.0, res, res), nodata=-999999) as ds:
+            ds.write(z, 1)
+    to_ea = Transformer.from_crs("EPSG:4269", "EPSG:5070", always_xy=True)
+    x0, y0 = to_ea.transform(-71.05, 45.4)
+    dem = terrain.fetch_dem_cog((x0, y0, x0 + 8000, y0 + 8000), res_m=50, template=str(tmp_path / "USGS_13_{tile}.tif"))
+    assert np.isnan(dem.z).mean() < 0.01  # the two tiles join without a gap
+    lon, lat = Transformer.from_crs("EPSG:5070", "EPSG:4269", always_xy=True).transform(x0 + 4000, y0 + 4000)
+    mid = dem.z[dem.z.shape[0] // 2, dem.z.shape[1] // 2]
+    assert mid == pytest.approx(300 + 1000 * (lat - 45.0), abs=3)

@@ -109,6 +109,7 @@ function PropertyInner() {
         {unit && <DaySection unit={unit} day={day} window={window} today={today} fc={fc} onDay={(d) => setParam("date", d)} />}
         {unit && (
           <SpotsSection
+            terrainAnalyzed={unit.score.factors.some((f) => f.key === "terrain" && f.value !== null)}
             spots={unitSpots}
             windFromDeg={dayWind}
             focus={focusSpot}
@@ -430,11 +431,13 @@ function SavedNote({ prop }: { prop: Property }) {
 }
 
 function SpotsSection({
+  terrainAnalyzed,
   spots,
   windFromDeg,
   focus,
   onShow,
 }: {
+  terrainAnalyzed: boolean;
   spots: Spot[];
   windFromDeg: number | null;
   focus: Spot | null;
@@ -446,7 +449,9 @@ function SpotsSection({
       <SectionTitle right={<span className="text-xs text-faint">{windFromDeg === null ? "no forecast wind" : "ranked for this day's wind"}</span>}>
         Scouting spots
       </SectionTitle>
-      {sorted.length === 0 ? (
+      {sorted.length === 0 && !terrainAnalyzed ? (
+        <Card className="p-4 text-sm text-muted">The elevation data for this area hasn&apos;t been processed yet, so there are no terrain spots to show.</Card>
+      ) : sorted.length === 0 ? (
         <Card className="p-4 text-sm text-muted">
           No saddles or benches stood out in the elevation data here. On flatter ground, deer travel tends to follow cover edges, wetland margins and
           streams instead; check the land cover layer.

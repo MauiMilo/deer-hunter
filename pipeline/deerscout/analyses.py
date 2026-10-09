@@ -29,7 +29,8 @@ log = logging.getLogger("deerscout")
 _TO_WGS = Transformer.from_crs(EQUAL_AREA, WGS84, always_xy=True)
 _TO_EA = Transformer.from_crs(WGS84, EQUAL_AREA, always_xy=True)
 
-DEM_RES_M = float(os.environ.get("DEERSCOUT_DEM_RES_M", "6"))
+DEM_RES_M = float(os.environ.get("DEERSCOUT_DEM_RES_M", "10"))  # matches the 1/3 arc-second 3DEP files
+DEM_SOURCE = os.environ.get("DEERSCOUT_DEM_SOURCE", "cog")  # "cog" (S3 files) or "imageserver"
 TILE_M = 8000.0
 SPOTS_PER_UNIT = 6
 SPOT_MIN_SPACING_M = 150.0
@@ -200,7 +201,10 @@ def run_terrain(ctx: Context) -> None:
         b = (core[0] - margin, core[1] - margin, core[2] + margin, core[3] + margin)
         t0 = time.time()
         try:
-            dem = terrain.fetch_dem(ctx.session, b, res_m=DEM_RES_M, cache_dir=dem_cache)
+            if DEM_SOURCE == "cog":
+                dem = terrain.fetch_dem_cog(b, res_m=DEM_RES_M, cache_dir=dem_cache)
+            else:
+                dem = terrain.fetch_dem(ctx.session, b, res_m=DEM_RES_M, cache_dir=dem_cache)
         except SourceError as e:
             failed_tiles += 1
             log.error("terrain tile at %s skipped: %s", core[:2], e.message)
@@ -244,7 +248,8 @@ def run_terrain(ctx: Context) -> None:
     ctx.record(
         terrain.SOURCE,
         "ok",
-        url=terrain.IMAGE_SERVER,
+        url=terrain.COG_TEMPLATE if DEM_SOURCE == "cog" else terrain.IMAGE_SERVER,
+        product="3DEP 1/3 arc-second seamless DEM (cloud-optimized GeoTIFF)" if DEM_SOURCE == "cog" else "3DEP ImageServer",
         tiles=n_tiles,
         failed_tiles=failed_tiles,
         units=done,
