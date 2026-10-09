@@ -29,6 +29,38 @@ def make_session() -> requests.Session:
     return s
 
 
+def get_bytes(
+    session: Session,
+    url: str,
+    params: dict[str, Any] | None = None,
+    *,
+    source: str,
+    retries: int = 3,
+    backoff: float = 2.0,
+    timeout: float = 180.0,
+    sleep=time.sleep,
+) -> tuple[bytes, str]:
+    """GET a binary document (raster, XML). Returns (body, content type)."""
+    last_err = "no attempt made"
+    for attempt in range(retries):
+        try:
+            resp = session.get(url, params=params, timeout=timeout)
+        except requests.RequestException as exc:
+            last_err = f"network error: {exc}"
+        else:
+            status = getattr(resp, "status_code", 200)
+            if status == 429 or status >= 500:
+                last_err = f"HTTP {status}"
+            elif status >= 400:
+                raise SourceError(source, f"HTTP {status} for {url}")
+            else:
+                ctype = (getattr(resp, "headers", {}) or {}).get("Content-Type", "")
+                return resp.content, ctype
+        if attempt < retries - 1:
+            sleep(backoff * (2**attempt))
+    raise SourceError(source, f"gave up after {retries} attempts ({last_err})")
+
+
 def get_json(
     session: Session,
     url: str,

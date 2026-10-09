@@ -41,7 +41,10 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
       - name: Build data
-        run: python -m deerscout.build --region "${{ github.event.inputs.region || 'coos' }}"
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m deerscout.build --region "${{ github.event.inputs.region || 'coos' }}" 2>&1 | tee run.log
       - name: Keep raw downloads for debugging
         if: always()
         uses: actions/upload-artifact@v4
@@ -63,3 +66,18 @@ jobs:
             git pull --rebase origin main
             git push origin HEAD:main
           fi
+      - name: Save the run log to the run-logs branch
+        if: always()
+        working-directory: .
+        shell: bash
+        run: |
+          cp pipeline/run.log /tmp/run.log 2>/dev/null || echo "no log" > /tmp/run.log
+          git config user.name "deer-scout-data-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -q -f . && git clean -fdq
+          git fetch origin run-logs || true
+          if git rev-parse --verify origin/run-logs >/dev/null 2>&1; then git checkout -q -B run-logs origin/run-logs; else git checkout -q --orphan run-logs; git rm -rf -q . || true; fi
+          cp /tmp/run.log latest.log
+          git add latest.log
+          git commit -q -m "Run ${{ github.run_id }} (${{ job.status }})" || true
+          git push -q origin run-logs || true

@@ -1,0 +1,41 @@
+name: Fetch reference documents
+
+# Downloads public reference documents (agency reports, rules) to the `reference-docs` branch
+# so they can be read and cited while working on the model. Main branch stays untouched.
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: Space-separated list of document URLs
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Download
+        env:
+          URLS: ${{ github.event.inputs.urls }}
+        run: |
+          git fetch origin reference-docs || true
+          if git rev-parse --verify origin/reference-docs >/dev/null 2>&1; then
+            git checkout -B reference-docs origin/reference-docs
+          else
+            git checkout --orphan reference-docs
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          mkdir -p docs
+          for u in $URLS; do
+            name=$(echo "$u" | sed -E 's#^https?://##; s#[^A-Za-z0-9._-]+#_#g' | cut -c1-150)
+            curl -fsSL --retry 3 -A "deer-scout/0.1 (reference fetch)" -o "docs/$name" "$u" && echo "ok $u" >> docs/INDEX.txt || echo "FAILED $u" >> docs/INDEX.txt
+          done
+          git config user.name "deer-scout-data-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Reference documents $(date -u +%Y-%m-%dT%H:%MZ)" || echo "nothing new"
+          git push origin reference-docs
