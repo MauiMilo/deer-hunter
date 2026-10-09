@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 from deerscout.config import DATA_DIR
-from deerscout.wmu import lookup, normalize
+from deerscout.wmu import lookup, normalize, regulation_unit
 
 
 @pytest.mark.parametrize(
@@ -53,3 +53,20 @@ def test_regulations_file_is_consistent():
         )
         for (s1, e1), (s2, e2) in zip(fa, fa[1:]):
             assert e1 < s2
+
+
+def test_map_subunits_map_to_regulation_units():
+    known = {"A", "B", "C1", "C2", "D1", "E"}
+    assert regulation_unit("A1", known) == "A"
+    assert regulation_unit("A2", known) == "A"
+    assert regulation_unit("C1", known) == "C1"
+    assert regulation_unit("e", known) == "E"
+    assert regulation_unit("D2E", known) == "D2E"  # not a letter+digits subunit; kept as is
+    assert regulation_unit("A1", None) == "A1"
+
+
+def test_every_coos_unit_has_each_season():
+    regs = yaml.safe_load((DATA_DIR / "regulations" / "nh-deer-2026.yaml").read_text())
+    for unit in ("A", "B", "C1", "C2", "D1", "E"):
+        for method in ("archery", "muzzleloader", "firearm", "youth"):
+            assert any(unit in s["units"] and s["method"] == method for s in regs["seasons"]), (unit, method)

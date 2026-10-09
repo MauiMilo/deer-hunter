@@ -1,4 +1,6 @@
-# NH deer seasons, Sept 2026 - Aug 2027, for the Wildlife Management Units that cover Coos County.
+# NH deer seasons, Sept 2026 - Aug 2027, for the Wildlife Management Units that cover Coos County
+# (A, B, C1, C2, D1 and E). On the official WMU map, WMU A is drawn as A1 and A2; deer rules for
+# "A" cover both.
 #
 # Source: 2026-27 NH Hunting Digest (eRegulations edition, last updated 2026-08-27).
 # The online season table had a garbled layout and was reconstructed; CONFIRM in the printed
@@ -41,12 +43,12 @@ seasons:
     deer: any
     note: "WMU A archery closes one week earlier than the rest of the state."
   - method: archery
-    units: [B, C1, C2, D1]
+    units: [B, C1, C2, D1, E]
     start: "2026-09-15"
     end: "2026-12-15"
     deer: any
   - method: youth
-    units: [A, B, C1, C2, D1]
+    units: [A, B, C1, C2, D1, E]
     start: "2026-10-24"
     end: "2026-10-25"
     deer: any
@@ -54,6 +56,16 @@ seasons:
   - method: muzzleloader
     units: [A, B, C1, C2, D1]
     start: "2026-10-31"
+    end: "2026-11-10"
+    deer: antlered
+  - method: muzzleloader
+    units: [E]
+    start: "2026-10-31"
+    end: "2026-10-31"
+    deer: any
+  - method: muzzleloader
+    units: [E]
+    start: "2026-11-01"
     end: "2026-11-10"
     deer: antlered
   - method: firearm
@@ -74,6 +86,16 @@ seasons:
   - method: firearm
     units: [B, C1, C2, D1]
     start: "2026-11-12"
+    end: "2026-12-06"
+    deer: antlered
+  - method: firearm
+    units: [E]
+    start: "2026-11-11"
+    end: "2026-11-12"
+    deer: any
+  - method: firearm
+    units: [E]
+    start: "2026-11-13"
     end: "2026-12-06"
     deer: antlered
 

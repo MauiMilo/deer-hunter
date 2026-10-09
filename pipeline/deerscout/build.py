@@ -182,12 +182,15 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
     rules = AccessRules.load(DATA_DIR / "access_rules.yaml", DATA_DIR / "verifications.yaml")
     props["towns"] = units.towns_touching(props, towns_gdf)
 
+    regs = yaml.safe_load((DATA_DIR / "regulations" / "nh-deer-2026.yaml").read_text())
+
     # 5. Units (blocks) and scores
     cfg = load_config(DATA_DIR / "scoring.yaml")
     unit_gdf = units.make_units(props, split_above_acres=BLOCK_SPLIT_THRESHOLD_ACRES, target_acres=BLOCK_TARGET_ACRES)
     unit_gdf["town"] = units.assign_towns(unit_gdf, towns_gdf)
     if wmu_gdf is not None:
-        wmu_results = [w.to_dict() for w in wmu.from_layer(unit_gdf.to_crs(EQUAL_AREA).geometry.values, wmu_gdf)]
+        known = {u for season in regs["seasons"] for u in season["units"]}
+        wmu_results = [w.to_dict() for w in wmu.from_layer(unit_gdf.to_crs(EQUAL_AREA).geometry.values, wmu_gdf, known_units=known)]
     else:
         wmu_results = [wmu.lookup(t).to_dict() for t in unit_gdf["town"]]
     unit_gdf["wmu"] = wmu_results
@@ -295,8 +298,6 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
             for i, (uid, g) in enumerate(zip(blocks["id"], _simplified(blocks) if len(blocks) else []))
         ],
     }
-
-    regs = yaml.safe_load((DATA_DIR / "regulations" / "nh-deer-2026.yaml").read_text())
 
     status_counts = pd.Series([r["access"]["status"] for r in prop_records]).value_counts().to_dict()
     manifest.update(

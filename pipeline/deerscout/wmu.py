@@ -84,7 +84,26 @@ WMU_LAYER = "https://services8.arcgis.com/hg1B9Egwk1I5p300/arcgis/rest/services/
 SOURCE_WMU = "NH Fish and Game Wildlife Management Units"
 
 
-def from_layer(unit_geoms, wmu_gdf, min_share: float = 0.02) -> list[WmuResult]:
+_SUBUNIT = re.compile(r"^([A-Z])\d+$")
+
+
+def regulation_unit(code: str, known: set[str] | None) -> str:
+    """Map a WMU map code to the unit the deer regulations use.
+
+    The WMU layer's own description says a regulation that names a letter alone (e.g. "A")
+    covers every numbered unit with that letter (A1, A2). Codes the regulations name exactly
+    (C1, C2, D1, D2E ...) are kept as they are.
+    """
+    code = code.strip().upper()
+    if not known or code in known:
+        return code
+    m = _SUBUNIT.match(code)
+    if m and m.group(1) in known:
+        return m.group(1)
+    return code
+
+
+def from_layer(unit_geoms, wmu_gdf, min_share: float = 0.02, known_units: set[str] | None = None) -> list[WmuResult]:
     """Deer WMU(s) for each unit polygon by overlaying the official WMU map.
 
     Both inputs must be GeoSeries/GeoDataFrames in the same projected (equal-area) system.
@@ -92,7 +111,7 @@ def from_layer(unit_geoms, wmu_gdf, min_share: float = 0.02) -> list[WmuResult]:
     """
     col = "WMUDEER" if "WMUDEER" in wmu_gdf.columns else "WMU"
     sindex = wmu_gdf.sindex
-    codes = wmu_gdf[col].astype(str).str.strip().tolist()
+    codes = [regulation_unit(c, known_units) for c in wmu_gdf[col].astype(str)]
     geoms = wmu_gdf.geometry.values
     out: list[WmuResult] = []
     for g in unit_geoms:
