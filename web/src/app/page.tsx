@@ -231,6 +231,7 @@ export default function HuntPage() {
             Hidden: {result.excluded.closed} closed for {METHOD_LABELS[settings.method].toLowerCase()} this day
             {!settings.includeUnknown && `, ${result.excluded.unknown} with unverified permission`}, {result.excluded.prohibited} with no public access.
           </p>
+          {settings.method === "archery" && regs.method_notes.crossbow && <p className="mt-2 px-1 text-xs text-faint">{regs.method_notes.crossbow}</p>}
           {manifest && regs && !regs.verified_against_print && (
             <p className="mt-2 px-1 text-xs text-faint">
               Season dates come from the online {regs.season_year} digest and haven&apos;t been checked against the printed copy.
