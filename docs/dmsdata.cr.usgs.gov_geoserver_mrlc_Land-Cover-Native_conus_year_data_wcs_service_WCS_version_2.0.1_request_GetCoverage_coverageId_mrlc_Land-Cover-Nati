@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><ows:ExceptionReport xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ows="http://www.opengis.net/ows/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/ows/2.0 http://schemas.opengis.net/ows/2.0/owsExceptionReport.xsd">
+  <ows:Exception exceptionCode="NoApplicableCode">
+    <ows:ExceptionText>Failed to read the coverage mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_year_data
+Cannot invoke &amp;quot;Object.getClass()&amp;quot; because &amp;quot;startTime&amp;quot; is null</ows:ExceptionText>
+  </ows:Exception>
+</ows:ExceptionReport>
