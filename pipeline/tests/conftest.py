@@ -39,7 +39,9 @@ class FakeResponse:
     def __init__(self, payload: Any = None, status: int = 200, content: bytes | None = None, ctype: str = "application/json"):
         self._payload = payload
         self.status_code = status
-        self.content = content if content is not None else json.dumps(payload).encode()
+        if content is None:
+            content = b"" if isinstance(payload, Exception) else json.dumps(payload).encode()
+        self.content = content
         self.headers = {"Content-Type": ctype}
 
     def json(self):
