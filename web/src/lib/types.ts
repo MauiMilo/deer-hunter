@@ -46,7 +46,7 @@ export interface Score {
 
 export interface Wmu {
   units: string[];
-  confidence: "town-wide" | "split-town" | "unknown";
+  confidence: "mapped" | "split-mapped" | "town-wide" | "split-town" | "unknown";
   note: string;
 }
 

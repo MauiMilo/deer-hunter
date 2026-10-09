@@ -108,6 +108,8 @@ class AccessRules:
                 return False
         if "name_contains" in when and not _contains(p.get("name"), when["name_contains"]):
             return False
+        if "name_any" in when and not any(_contains(p.get("name"), n) for n in when["name_any"]):
+            return False
         if "parent_name_contains" in when and not (
             _contains(p.get("parent_name"), when["parent_name_contains"])
             or _contains(p.get("name"), when["parent_name_contains"])
@@ -174,4 +176,5 @@ class AccessRules:
             restrictions=list(rule.get("restrictions") or []),
             sources=cited,
             checked_on=max(dates) if dates else None,
+            notes=[rule["note"]] if rule.get("note") else [],
         )

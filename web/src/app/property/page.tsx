@@ -175,7 +175,7 @@ function AccessSection({ prop }: { prop: Property }) {
         <StatusBadge status={a.status} />
         <p className="text-[15px]">{a.summary}</p>
         {a.notes.map((n) => (
-          <Notice key={n} tone="bad">
+          <Notice key={n} tone="warn">
             {n}
           </Notice>
         ))}
@@ -230,7 +230,7 @@ function DaySection({ unit, day, window, today, onDay }: { unit: Unit; day: stri
       </SectionTitle>
       <Card className="space-y-3 p-4">
         <div className={`text-sm font-medium ${season.open ? "text-ok" : "text-bad"}`}>{season.message}</div>
-        {unit.wmu.confidence !== "town-wide" && <p className="text-xs text-warn">{unit.wmu.note}</p>}
+        {unit.wmu.confidence !== "mapped" && <p className="text-xs text-warn">{unit.wmu.note}</p>}
         {legal && (
           <div className="text-sm">
             <span className="text-muted">Legal hours: </span>

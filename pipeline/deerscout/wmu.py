@@ -60,7 +60,8 @@ def normalize(town: str | None) -> str:
 @dataclass(frozen=True)
 class WmuResult:
     units: tuple[str, ...]
-    confidence: str  # "town-wide" | "split-town" | "unknown"
+    # "mapped" / "split-mapped" come from the official WMU layer; the town-based values are a fallback.
+    confidence: str  # "mapped" | "split-mapped" | "town-wide" | "split-town" | "unknown"
     note: str
 
     def to_dict(self) -> dict:
@@ -75,3 +76,39 @@ def lookup(town: str | None) -> WmuResult:
         a, b, note = _SPLIT[t]
         return WmuResult((a, b), "split-town", note)
     return WmuResult((), "unknown", f"WMU for {town or 'this spot'} isn't mapped yet; check the digest map.")
+
+
+# --------------------------------------------------------------- official WMU layer
+
+WMU_LAYER = "https://services8.arcgis.com/hg1B9Egwk1I5p300/arcgis/rest/services/WMU/FeatureServer/0"
+SOURCE_WMU = "NH Fish and Game Wildlife Management Units"
+
+
+def from_layer(unit_geoms, wmu_gdf, min_share: float = 0.02) -> list[WmuResult]:
+    """Deer WMU(s) for each unit polygon by overlaying the official WMU map.
+
+    Both inputs must be GeoSeries/GeoDataFrames in the same projected (equal-area) system.
+    A unit is "split" when more than ``min_share`` of its area falls in a second unit.
+    """
+    col = "WMUDEER" if "WMUDEER" in wmu_gdf.columns else "WMU"
+    sindex = wmu_gdf.sindex
+    codes = wmu_gdf[col].astype(str).str.strip().tolist()
+    geoms = wmu_gdf.geometry.values
+    out: list[WmuResult] = []
+    for g in unit_geoms:
+        shares: dict[str, float] = {}
+        if g is not None and not g.is_empty and g.area > 0:
+            for j in sindex.query(g, predicate="intersects"):
+                a = g.intersection(geoms[j]).area / g.area
+                if a > 0:
+                    shares[codes[j]] = shares.get(codes[j], 0.0) + a
+        units = tuple(sorted((k for k, v in shares.items() if v >= min_share and k and k not in ('None', 'nan')), key=lambda k: -shares[k]))
+        if not units:
+            out.append(WmuResult((), "unknown", "Outside the mapped WMUs; check the digest map."))
+        elif len(units) == 1:
+            out.append(WmuResult(units, "mapped", f"Inside WMU {units[0]} (NH Fish and Game WMU map)."))
+        else:
+            out.append(
+                WmuResult(units, "split-mapped", f"This area straddles the WMU {'/'.join(units)} line; check which side you hunt.")
+            )
+    return out

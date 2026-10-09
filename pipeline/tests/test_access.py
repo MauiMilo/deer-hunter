@@ -125,3 +125,25 @@ def test_general_restrictions_are_cited(rules):
     g = rules.general_restrictions()
     assert any("not for legal use" in x["text"] for x in g)
     assert all(x["sources"] for x in g)
+
+
+def test_fish_and_game_listed_wma_is_verified(rules):
+    r = rules.evaluate(prop(name="Brown WMA", agency_code=32000))
+    assert r.status == "verified"
+    assert r.rule_id == "nhfg-listed-lands"
+
+
+def test_connecticut_lakes_natural_area(rules):
+    r = rules.evaluate(prop(name="Connecticut Lakes Natural Area", agency_code=32000))
+    assert r.status == "verified"
+    assert any("bait" in x.lower() for x in r.restrictions)
+
+
+def test_unlisted_fish_and_game_land_stays_unknown(rules):
+    assert rules.evaluate(prop(name="Connecticut River Drivers WMA", agency_code=32000)).status == "unknown"
+
+
+def test_dartmouth_grant_carries_its_age_warning(rules):
+    r = rules.evaluate(prop(name="Second College Grant", agency_code=50420))
+    assert r.status == "verified"
+    assert any("2012" in n for n in r.notes)

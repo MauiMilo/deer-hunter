@@ -161,7 +161,20 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
         _record(manifest, tiger.SOURCE_TOWNS, "ok", res)
     except SourceError as e:
         _record(manifest, tiger.SOURCE_TOWNS, "failed", error=e.message)
-        manifest["warnings"].append("Town boundaries unavailable; WMUs could not be assigned.")
+        manifest["warnings"].append("Town boundaries unavailable; town names are missing and the WMU fallback can't be used.")
+
+    # 3b. Official WMU map (optional: falls back to town names)
+    wmu_gdf = None
+    try:
+        res = query_geojson(session, wmu.WMU_LAYER, source=wmu.SOURCE_WMU, envelope=region.envelope)
+        wmu_gdf = repair(features_to_gdf(res.features)).to_crs(EQUAL_AREA)
+        if wmu_gdf.empty:
+            raise SourceError(wmu.SOURCE_WMU, "no WMU polygons returned")
+        _record(manifest, wmu.SOURCE_WMU, "ok", res)
+    except SourceError as e:
+        wmu_gdf = None
+        _record(manifest, wmu.SOURCE_WMU, "failed", error=e.message)
+        manifest["warnings"].append("Official WMU map unavailable; WMUs were estimated from town names.")
 
     # 4. Properties, overlaps, access
     props = units.build_properties(tracts)
@@ -173,6 +186,11 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
     cfg = load_config(DATA_DIR / "scoring.yaml")
     unit_gdf = units.make_units(props, split_above_acres=BLOCK_SPLIT_THRESHOLD_ACRES, target_acres=BLOCK_TARGET_ACRES)
     unit_gdf["town"] = units.assign_towns(unit_gdf, towns_gdf)
+    if wmu_gdf is not None:
+        wmu_results = [w.to_dict() for w in wmu.from_layer(unit_gdf.to_crs(EQUAL_AREA).geometry.values, wmu_gdf)]
+    else:
+        wmu_results = [wmu.lookup(t).to_dict() for t in unit_gdf["town"]]
+    unit_gdf["wmu"] = wmu_results
 
     prop_by_id = props.set_index("id")
     unit_records = []
@@ -195,7 +213,7 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
                 "point": [lon, lat],
                 "bbox": _bbox(u.geometry),
                 "town": u["town"],
-                "wmu": wmu.lookup(u["town"]).to_dict(),
+                "wmu": u["wmu"],
                 "score": score,
             }
         )
@@ -297,7 +315,6 @@ def build(region: Region, *, session: Session | None = None, out_dir: Path = OUT
     manifest["limitations"] += [
         "Scores currently use property size and shape only. Land cover, terrain, pressure and deer abundance are not analyzed yet, so every score is provisional.",
         "Overlapping records (for example, a state forest and an easement on the same ground) are listed separately; see each property's overlaps.",
-        "WMUs come from town names and the digest's written boundaries, not an official WMU map layer.",
     ]
 
     catalog = {

@@ -12,6 +12,7 @@
 #   protection_type_code: [list of GRANIT PPTYPE codes, e.g. FO = fee ownership]
 #   public_access_code: [list of GRANIT ACCESS codes]
 #   name_contains / parent_name_contains: case-insensitive text
+#   name_any: list of case-insensitive text; matches if the name contains any of them
 #   name_excludes: list of case-insensitive text; rule is skipped if the name contains any
 
 sources:
@@ -46,6 +47,23 @@ sources:
     publisher: USDA Forest Service
     source_date: "2026-03-24"
     retrieved: "2026-10-08"
+  fis_900:
+    title: "NH Admin. Rules Chapter Fis 900 - Lands and waters under Fish and Game control (Fis 902.02, Table 900.01)"
+    url: https://www.gc.nh.gov/Rules/state_agencies/fis900.html
+    publisher: NH Fish and Game Department (rule text, NH General Court)
+    source_date: "2017-02-24"
+    retrieved: "2026-10-08"
+  fis_903_07:
+    title: "NH Admin. Rules Fis 903.07 - Connecticut Lakes Natural Area"
+    url: https://regulations.justia.com/states/new-hampshire/fis/chapter-fis-900/part-fis-903/section-fis-903-07/
+    publisher: NH Fish and Game Department (rule text via Justia)
+    retrieved: "2026-10-08"
+  dartmouth_grant:
+    title: "Hunting and Fishing on the Second College Grant (Dartmouth brochure)"
+    url: https://outdoors.dartmouth.edu/services/collegegrant/granthuntfish.pdf
+    publisher: Dartmouth College Outdoor Programs
+    source_date: "2012 (printed Spring 2012)"
+    retrieved: "2026-10-08"
   umbagog_hunting:
     title: "Lake Umbagog National Wildlife Refuge - Hunting"
     url: https://fws.gov/refuge/umbagog/visit-us/activities/hunting
@@ -71,6 +89,32 @@ rules:
       - "ATVs, trail bikes and snowmobiles only on trails designated by the Bureau of Trails."
       - "Land is privately owned under a state conservation easement; logging traffic and road conditions change. Respect gates and closures."
     sources: [clhw_rules_sign, res_7301_10]
+
+  - id: nhfg-connecticut-lakes-natural-area
+    status: verified
+    when:
+      agency_code: [32000]
+      name_contains: "Connecticut Lakes Natural Area"
+    summary: "Fish and Game land open to hunting under Fis 902.02. Rule Fis 903.07 adds limits specific to the Connecticut Lakes Natural Area."
+    restrictions:
+      - "No hunting over bait."
+      - "No camping."
+      - "No motorized vehicles except snowmobiles and wheeled vehicles on designated roads and trails."
+      - "Portable stands only, Aug 1 - Jan 31. No permanent stands or blinds."
+    sources: [fis_903_07, fis_900]
+
+  - id: dartmouth-second-college-grant
+    status: verified
+    when:
+      name_contains: "Second College Grant"
+    summary: "Dartmouth keeps the Second College Grant open to public hunting, except areas temporarily closed for logging, research or safety."
+    restrictions:
+      - "Bear season through the end of firearm deer season: no day passes. Only cabin renters may drive in; everyone else walks or bikes in from the gates."
+      - "During deer season, register vehicles at the main gate off Route 16 in Wentworth's Location."
+      - "No baiting. No road hunting. No shooting within 15 ft of open roads or marked trails or within 300 ft of a cabin."
+      - "No camping or open fires."
+    sources: [dartmouth_grant]
+    note: "Dartmouth's brochure is from 2012. Call the Dartmouth Woodlands Office before your trip to confirm current rules."
 
   - id: granit-no-public-access
     status: prohibited
@@ -114,6 +158,18 @@ rules:
       - "Temporary stands and blinds only: up no earlier than 14 days before the season, down within 14 days after, marked with your license number."
       - "No baiting. No ATVs or UTVs. Vehicles allowed on logging roads, not skid roads or skidder trails."
     sources: [umbagog_hunting]
+
+  - id: nhfg-listed-lands
+    status: verified
+    when:
+      agency_code: [32000]
+      name_any: ["Brown WMA", "Gray WMA", "Greenough Pond", "Mount Kelsey", "Muise Mountain", "Long Mountain", "Horne Brook", "Upper Ammonoosuc", "Hedgehog Brook", "Bofinger", "Connecticut River Shorebank"]
+    summary: "Listed in Fish and Game's Table 900.01, which Fis 902.02 opens to public hunting during open seasons."
+    restrictions:
+      - "Portable stands only, Aug 1 - Jan 31. No permanent stands or blinds."
+      - "No ATVs or snowmobiles except on approved trails and frozen public waters."
+      - "Camping and overnight stays need a Fish and Game permit."
+    sources: [fis_900]
 
   - id: nhfg-land
     status: unknown

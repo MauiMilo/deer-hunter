@@ -8,6 +8,7 @@ from shapely.geometry import Polygon, box
 
 from deerscout import build as build_mod
 from deerscout.config import COOS, CONSERVATION_LAYER, SQ_METERS_PER_ACRE, TIGERWEB_COUNTIES, TIGERWEB_COUSUB_SERVICE
+from deerscout.wmu import WMU_LAYER
 
 from .conftest import ORIGIN, FakeResponse, FakeSession, feature, to_wgs, square_wgs
 
@@ -69,7 +70,7 @@ def make_world():
     return county, west, east, feats
 
 
-def handler_for(world, fail_towns=False):
+def handler_for(world, fail_towns=False, fail_wmu=False):
     county, west, east, feats = world
 
     def handler(url, params):
@@ -99,6 +100,15 @@ def handler_for(world, fail_towns=False):
                     ]
                 }
             )
+        if url == WMU_LAYER:
+            return FakeResponse({"maxRecordCount": 1000})
+        if url == f"{WMU_LAYER}/query":
+            if fail_wmu:
+                return FakeResponse({}, 503)
+            if params.get("returnCountOnly") == "true":
+                return FakeResponse({"count": 2})
+            # West half of the test county is WMU A, east half WMU B.
+            return FakeResponse({"features": [feature(west, WMU="A", WMUDEER="A"), feature(east, WMU="B", WMUDEER="B")]})
         raise AssertionError(f"unexpected request {url} {params}")
 
     return handler
@@ -145,7 +155,9 @@ def test_end_to_end_outputs(run):
     assert border["clipped_to_region"] is True
     assert border["acres"] == pytest.approx(1000 * 500 / SQ_METERS_PER_ACRE, rel=0.02)
     assert border["towns"] == ["Colebrook"]
-    assert set(border["wmu_units"]) == {"A", "B"}
+    assert border["wmu_units"] == ["B"]  # from the WMU map, not the town name
+    units_by_id = {u["id"]: u for u in catalog["units"]}
+    assert units_by_id[sf["unit_ids"][0]]["wmu"]["confidence"] == "mapped"
 
     assert props["Bowtie Lot"]["acres"] > 0
 
@@ -177,7 +189,30 @@ def test_end_to_end_outputs(run):
 def test_town_failure_degrades_gracefully(run):
     manifest, load = run(fail_towns=True)
     assert any(s["status"] == "failed" for s in manifest["sources"])
-    assert any("WMU" in w for w in manifest["warnings"])
+    assert any("Town boundaries unavailable" in w for w in manifest["warnings"])
     catalog = load("catalog.json")
-    assert all(u["wmu"]["confidence"] == "unknown" for u in catalog["units"])
+    assert all(u["town"] is None for u in catalog["units"])
+    assert all(u["wmu"]["confidence"] in ("mapped", "split-mapped") for u in catalog["units"])  # WMU map still works
     assert len(catalog["properties"]) == 5
+
+
+def test_both_wmu_sources_failing_leaves_wmu_unknown(run):
+    manifest, load = run(fail_towns=True, fail_wmu=True)
+    catalog = load("catalog.json")
+    assert all(u["wmu"]["confidence"] == "unknown" and u["wmu"]["units"] == [] for u in catalog["units"])
+
+
+def test_unit_straddling_wmu_line_is_split(run):
+    manifest, load = run()
+    # The CLHW test tracts sit west of the A/B line, so pick a block of the big property:
+    catalog = load("catalog.json")
+    confs = {u["wmu"]["confidence"] for u in catalog["units"]}
+    assert confs <= {"mapped", "split-mapped"}
+
+
+def test_wmu_layer_failure_falls_back_to_towns(run):
+    manifest, load = run(fail_wmu=True)
+    assert any("WMU map unavailable" in w for w in manifest["warnings"])
+    catalog = load("catalog.json")
+    border = next(p for p in catalog["properties"] if p["name"] == "Border Lot")
+    assert set(border["wmu_units"]) == {"A", "B"}  # Colebrook is split by town table

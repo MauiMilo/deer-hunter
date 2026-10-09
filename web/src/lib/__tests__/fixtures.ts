@@ -29,7 +29,7 @@ export function unit(id: string, propertyId: string, score: number | null, point
     point,
     bbox: [point[0], point[1], point[0], point[1]],
     town: "Pittsburg",
-    wmu: { units, confidence: units.length > 1 ? "split-town" : "town-wide", note: "" },
+    wmu: { units, confidence: units.length > 1 ? "split-mapped" : "mapped", note: "" },
     score: {
       score,
       coverage: 0.15,
