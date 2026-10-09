@@ -72,6 +72,7 @@ COLORS = {
 PIXEL_M = 30.0
 
 DMS_WCS = "https://dmsdata.cr.usgs.gov/geoserver/mrlc_Land-Cover-Native_conus_year_data/wcs"
+DMS_WMS = "https://dmsdata.cr.usgs.gov/geoserver/mrlc_Land-Cover-Native_conus_year_data/wms"
 LEGACY_WCS = "https://www.mrlc.gov/geoserver/mrlc_download/NLCD_2021_Land_Cover_L48/wcs"
 LEGACY_ID = "mrlc_download__NLCD_2021_Land_Cover_L48"
 
@@ -189,6 +190,66 @@ def _download(session: Session, base: str, cid: str, bounds, time: str | None = 
     return arr.astype(np.uint8), transform, crs
 
 
+_RGB_TO_CLASS = {rgb: code for code, rgb in COLORS.items()}
+
+
+def decode_rgb(rgba: np.ndarray) -> np.ndarray:
+    """Turn a map image drawn with the official NLCD palette back into class codes.
+
+    The annual land cover service only returns a chosen year through its map interface, as
+    colors. NLCD's palette gives each class its own exact color, so the mapping is one-to-one;
+    any other color (edges, no data) becomes 0.
+    """
+    key = (rgba[0].astype(np.uint32) << 16) | (rgba[1].astype(np.uint32) << 8) | rgba[2].astype(np.uint32)
+    out = np.zeros(key.shape, dtype=np.uint8)
+    for (r, g, b), code in _RGB_TO_CLASS.items():
+        out[key == ((r << 16) | (g << 8) | b)] = code
+    if rgba.shape[0] >= 4:
+        out[rgba[3] == 0] = 0
+    return out
+
+
+def _get_wms_tile(session: Session, layer: str, b, time: str) -> np.ndarray:
+    w, h = int(round((b[2] - b[0]) / PIXEL_M)), int(round((b[3] - b[1]) / PIXEL_M))
+    params = {
+        "service": "WMS",
+        "version": "1.1.1",
+        "request": "GetMap",
+        "layers": layer,
+        "styles": "",
+        "srs": "EPSG:5070",
+        "bbox": f"{b[0]},{b[1]},{b[2]},{b[3]}",
+        "width": w,
+        "height": h,
+        "format": "image/geotiff",
+        "TIME": time,
+    }
+    body, ctype = get_bytes(session, DMS_WMS, params, source=SOURCE, max_bytes=8 * w * h + 1_000_000)
+    if body[:4] not in (b"II*\x00", b"MM\x00*"):
+        raise SourceError(SOURCE, f"map request for {time[:4]} returned {ctype}: {body[:300].decode('utf-8', 'replace')}")
+    with rasterio.io.MemoryFile(io.BytesIO(body)) as mf, mf.open() as ds:
+        rgba = ds.read()
+    if rgba.shape[1:] != (h, w):
+        raise SourceError(SOURCE, f"expected {w}x{h} pixels, got {rgba.shape[2]}x{rgba.shape[1]}")
+    return decode_rgb(rgba)
+
+
+def _download_wms(session: Session, layer: str, bounds, time: str) -> tuple[np.ndarray, Affine]:
+    tiles = _tiles(bounds)
+    minx = min(t[0] for t in tiles)
+    maxy = max(t[3] for t in tiles)
+    maxx = max(t[2] for t in tiles)
+    miny = min(t[1] for t in tiles)
+    W, H = int(round((maxx - minx) / PIXEL_M)), int(round((maxy - miny) / PIXEL_M))
+    out = np.zeros((H, W), dtype=np.uint8)
+    for b in tiles:
+        arr = _get_wms_tile(session, layer, b, time)
+        r0 = int(round((maxy - b[3]) / PIXEL_M))
+        c0 = int(round((b[0] - minx) / PIXEL_M))
+        out[r0 : r0 + arr.shape[0], c0 : c0 + arr.shape[1]] = arr
+    return out, Affine(PIXEL_M, 0, minx, 0, -PIXEL_M, maxy)
+
+
 def validate(arr: np.ndarray) -> float:
     """Share of pixels holding a real NLCD class (the rest are no-data / out of range)."""
     if arr.size == 0:
@@ -229,13 +290,20 @@ def fetch(session: Session, bounds_5070: tuple[float, float, float, float]) -> t
                 if earlier:
                     prev_time = earlier[-1]
                     prev_year = int(prev_time[:4])
-            arr, tr, crs = _download(session, DMS_WCS, cid, bounds_5070, time)
+            if time:
+                # Multi-year layer: its coverage interface errors on a year request, but its map
+                # interface honors TIME and draws the official class colors, which decode exactly.
+                layer = cid.replace("__", ":", 1)
+                arr, tr = _download_wms(session, layer, bounds_5070, time)
+                crs = "EPSG:5070"
+            else:
+                arr, tr, crs = _download(session, DMS_WCS, cid, bounds_5070, time)
             share = validate(arr)
             if share >= 0.5:
-                lc = LandCover(arr, tr, crs, f"Annual NLCD {year}", year, DMS_WCS)
+                lc = LandCover(arr, tr, crs, f"Annual NLCD {year}", year, DMS_WMS if time else DMS_WCS)
                 if prev_time:
                     try:
-                        prev, ptr, _ = _download(session, DMS_WCS, cid, bounds_5070, prev_time)
+                        prev, ptr = _download_wms(session, cid.replace("__", ":", 1), bounds_5070, prev_time)
                         if prev.shape == arr.shape and ptr == tr and validate(prev) >= 0.5:
                             lc.previous, lc.previous_year = prev, prev_year
                         else:

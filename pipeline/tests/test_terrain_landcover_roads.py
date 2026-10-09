@@ -265,3 +265,17 @@ def test_recent_logging_detected():
     # The regrowth strip (10 rows x 100) was forest in 2020: 1000 of 10000 classified pixels.
     assert st["recent_opening_share"] == pytest.approx(0.1, abs=0.001)
     assert st["change_years"] == [2020, 2024]
+
+
+def test_decodes_nlcd_palette_colors():
+    codes = np.array([[41, 42, 52], [11, 90, 0]], dtype=np.uint8)
+    rgba = np.zeros((4, 2, 3), dtype=np.uint8)
+    for (r, c), code in np.ndenumerate(codes):
+        if code:
+            rgba[:3, r, c] = landcover.COLORS[int(code)]
+            rgba[3, r, c] = 255
+    rgba[:3, 1, 2] = (1, 2, 3)  # an off-palette color (edge or no data)
+    rgba[3, 1, 2] = 255
+    assert landcover.decode_rgb(rgba).tolist() == [[41, 42, 52], [11, 90, 0]]
+    rgba[3, 0, 0] = 0  # transparent pixel
+    assert landcover.decode_rgb(rgba)[0, 0] == 0
