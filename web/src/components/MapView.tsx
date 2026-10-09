@@ -48,6 +48,8 @@ interface Props {
   showSpots?: boolean;
   highlightSpotId?: string | null;
   onSelectSpot?: (id: string) => void;
+  /** Your own waypoints (kept on the phone), drawn as markers. */
+  waypoints?: { type: "FeatureCollection"; features: unknown[] } | null;
   base?: BaseLayer;
   fitBbox?: [number, number, number, number] | null;
   center?: [number, number];
@@ -74,6 +76,7 @@ export default function MapView({
   showLandcover = false,
   showSpots = true,
   highlightSpotId = null,
+  waypoints = null,
   onSelectProperty,
   onSelectUnit,
   onSelectSpot,
@@ -230,6 +233,32 @@ export default function MapView({
     if (!m || !ready) return;
     for (const b of ["topo", "imagery", "hillshade"] as const) m.setLayoutProperty(b, "visibility", b === base ? "visible" : "none");
   }, [base, ready]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !waypoints) return;
+    const data = waypoints as unknown as GeoJSON.FeatureCollection;
+    const src = m.getSource("waypoints") as import("maplibre-gl").GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data);
+      return;
+    }
+    m.addSource("waypoints", { type: "geojson", data });
+    m.addLayer({
+      id: "wp-dot",
+      type: "circle",
+      source: "waypoints",
+      paint: { "circle-radius": 6, "circle-color": "#6cb6ff", "circle-stroke-color": "#08203a", "circle-stroke-width": 2 },
+    });
+    m.addLayer({
+      id: "wp-label",
+      type: "symbol",
+      source: "waypoints",
+      minzoom: 12,
+      layout: { "text-field": ["get", "name"], "text-font": ["Open Sans Semibold"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top" },
+      paint: { "text-color": "#08203a", "text-halo-color": "#fff", "text-halo-width": 1.5 },
+    });
+  }, [waypoints, ready]);
 
   useEffect(() => {
     const m = map.current;

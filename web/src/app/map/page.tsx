@@ -2,11 +2,13 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useData } from "@/components/DataProvider";
 import type { BaseLayer } from "@/components/MapView";
 import { BASE_LABELS } from "@/components/MapView";
 import { goodWindText } from "@/components/spot-ui";
+import { useFieldLog } from "@/components/useFieldLog";
+import { waypointsGeoJson } from "@/lib/fieldlog";
 import { ScorePill, StatusBadge } from "@/components/ui";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
@@ -19,6 +21,8 @@ export default function MapPage() {
   const [lcOn, setLcOn] = useState(false);
   const [sel, setSel] = useState<{ property: string; unit: string | null; spot?: string | null } | null>(null);
   const spot = sel?.spot ? spotById.get(sel.spot) : undefined;
+  const { waypoints } = useFieldLog();
+  const wpGeo = useMemo(() => waypointsGeoJson(waypoints), [waypoints]);
 
   const prop = sel ? propertyById.get(sel.property) : undefined;
   const unit = sel?.unit ? unitById.get(sel.unit) : undefined;
@@ -37,6 +41,7 @@ export default function MapPage() {
         showSpots={showSpots}
         landcover={landcover}
         showLandcover={lcOn}
+        waypoints={wpGeo}
         onSelectSpot={(id) => {
           const sp = spotById.get(id);
           if (sp) setSel({ property: sp.property_id, unit: sp.unit_id, spot: id });
