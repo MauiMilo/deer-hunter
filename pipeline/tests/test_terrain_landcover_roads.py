@@ -130,6 +130,8 @@ def test_picks_newest_annual_land_cover():
     ]
     assert landcover.pick_annual_coverage(ids) == ("mrlc__Annual_NLCD_LndCov_2025_CU_C1V2", 2025)
     assert landcover.pick_annual_coverage(["something_else"]) is None
+    hyphen = ["mrlc_Land-Cover-Native_conus_year_data__Land-Cover-Native_conus_2024", "ws__Land-Cover-Change_conus_2024"]
+    assert landcover.pick_annual_coverage(hyphen) == (hyphen[0], 2024)
 
 
 def test_parses_coverage_ids_from_capabilities():

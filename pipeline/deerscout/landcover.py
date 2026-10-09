@@ -97,10 +97,10 @@ def pick_annual_coverage(coverage_ids: list[str]) -> tuple[str, int] | None:
     """Newest-year land cover coverage from a capabilities list (skips change/confidence products)."""
     best: tuple[str, int] | None = None
     for cid in coverage_ids:
-        low = cid.lower()
-        if not ("lndcov" in low or "land_cover" in low or "landcover" in low):
+        low = re.sub(r"[^a-z0-9]", "", cid.lower())  # "Land-Cover", "land_cover", "LndCov" all match
+        if not ("lndcov" in low or "landcover" in low):
             continue
-        if any(x in low for x in ("chg", "change", "conf", "smy", "imp", "spcdoy")):
+        if any(x in low for x in ("chg", "change", "conf", "cnf", "smy", "imp", "spcdoy", "fctimp")):
             continue
         years = [int(y) for y in re.findall(r"(?<!\d)(19[89]\d|20[0-4]\d)(?!\d)", cid)]
         if not years:
@@ -185,7 +185,9 @@ def fetch(session: Session, bounds_5070: tuple[float, float, float, float]) -> t
         caps, _ = get_bytes(
             session, DMS_WCS, {"service": "WCS", "version": "2.0.1", "request": "GetCapabilities"}, source=SOURCE, max_bytes=30_000_000
         )
-        pick = pick_annual_coverage(coverage_ids(caps.decode("utf-8", "replace")))
+        ids = coverage_ids(caps.decode("utf-8", "replace"))
+        tried.append(f"Annual NLCD capabilities list {len(ids)} coverages, e.g. {ids[:6]}")
+        pick = pick_annual_coverage(ids)
         if pick:
             cid, year = pick
             arr, tr, crs = _download(session, DMS_WCS, cid, bounds_5070)
