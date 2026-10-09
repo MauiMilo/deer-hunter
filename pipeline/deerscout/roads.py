@@ -123,17 +123,13 @@ class Network:
     drivable_names: list[str | None]
     gated: list[Any]
     trails: list[Any]
-    near_zone: Any = None  # area within NEAR_ROAD_M of a drivable road
-    interior_cut: Any = None  # area within INTERIOR_M of a drivable road
 
     def __post_init__(self) -> None:
+        # Spatial indexes only. Road zones are built per unit from nearby lines; buffering the
+        # whole county's network at once needs far too much memory.
         self._dtree = shapely.STRtree(self.drivable) if self.drivable else None
         self._gtree = shapely.STRtree(self.gated) if self.gated else None
         self._ttree = shapely.STRtree(self.trails) if self.trails else None
-        if self.drivable and self.near_zone is None:
-            merged = shapely.union_all(self.drivable)
-            self.near_zone = merged.buffer(NEAR_ROAD_M, quad_segs=4)
-            self.interior_cut = merged.buffer(INTERIOR_M, quad_segs=4)
 
     @classmethod
     def build(cls, roads: gpd.GeoDataFrame | None, trails: gpd.GeoDataFrame | None) -> "Network":
@@ -179,9 +175,13 @@ def unit_signals(net: Network, geom_ea) -> dict[str, Any]:
         out["nearest_road_name"] = name
         rp = geom_ea.representative_point()
         out["center_to_road_m"] = round(_nearest(net._dtree, net.drivable, rp)[0], 1)
-        box = geom_ea.bounds
-        near = geom_ea.intersection(shapely.clip_by_rect(net.near_zone, *box)).area / area
-        far = geom_ea.difference(shapely.clip_by_rect(net.interior_cut, *box)).area / area
+        local = [net.drivable[j] for j in net._dtree.query(geom_ea.buffer(INTERIOR_M))]
+        if local:
+            lines = shapely.union_all(local)
+            near = geom_ea.intersection(lines.buffer(NEAR_ROAD_M, quad_segs=4)).area / area
+            far = geom_ea.difference(lines.buffer(INTERIOR_M, quad_segs=4)).area / area
+        else:
+            near, far = 0.0, 1.0
         out["share_near_road"] = round(float(near), 4)
         out["share_interior"] = round(float(far), 4)
     ghit = _nearest(net._gtree, net.gated, geom_ea)
