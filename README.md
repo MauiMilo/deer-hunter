@@ -16,26 +16,31 @@ check the NH Hunting Digest, posted signs and property rules.
 - **Checks permission separately from habitat.** Each property is *hunting allowed (with source and
   date)*, *no public access*, or *not verified*. Only cited sources count: state park/forest rules,
   Fish and Game land rules, the Connecticut Lakes Headwaters rules, WMNF, Umbagog refuge, Dartmouth's
-  Second College Grant. Unverified land is hidden unless you ask for research candidates.
+  Second College Grant. Places Fish and Game lists as closed (Pondicherry Wildlife Refuge, state
+  historic sites) are marked off-limits. Unverified land is hidden unless you ask for research
+  candidates.
 - **Knows the seasons.** Official WMU map for every block; 2026-27 seasons by method and WMU; legal
-  hours from sunrise/sunset; flags blocks that straddle a WMU line.
-- **Scores habitat, pressure, terrain and access** from USGS land cover (30 m), DOT and OpenStreetMap
-  roads, state trails, and USGS 3DEP bare-earth elevation. Every score shows its parts, what kind of
+  hours from sunrise/sunset; crossbow rules and their exceptions; flags blocks that straddle a WMU line.
+- **Scores habitat, pressure, terrain and access** from USGS Annual NLCD 2025 land cover (30 m, with
+  forest cut since 2020 counted as fresh browse), DOT and OpenStreetMap roads, state trails, and USGS
+  3DEP bare-earth elevation (10 m). Every score shows its parts, what kind of
   evidence each rests on, and what's missing.
-- **Finds scouting spots**: saddles and benches from the elevation data, scored for nearby food/cover
-  edges, walk-in distance, trails and boundaries, with the winds that suit each one.
+- **Finds scouting spots**: about 1,100 saddles and benches from the elevation data across the
+  county, scored for nearby food/cover edges, walk-in distance, trails and boundaries, with the winds
+  that suit each one and the direction to walk in from.
 - **Plans the day** with a 7-day forecast (Open-Meteo): conditions score, safety warnings, wind check
   for each spot and for the walk in, and five seasons of wind history as wind roses.
-- **Works like an app on iPhone**: add to Home Screen, dark pre-dawn theme, GPS distances, saved places
-  and notes stored only on the phone, last data available without signal.
+- **Keeps a field log**: GPS waypoints, sightings by hour, notes, GPX export. Stored only on the phone.
+- **Works like an app on iPhone**: add to Home Screen, dark pre-dawn theme, GPS distances, last data
+  available without signal.
 
 ## What's not done yet
 
 - Regional deer abundance (Fish and Game buck kill per square mile): official report not yet loaded.
 - Real drive times (distances are straight-line with a rough drive estimate).
-- Season dates still need checking against the printed digest.
-- Offline map tiles, GPS waypoints, observation logging, personal score calibration (Phase 4).
-- Timber-harvest change detection from year-to-year land cover.
+- Season dates match the online digest and the season formula in the rules, but haven't been
+  checked against the printed digest.
+- Offline map tiles, GPX/KML import, and tuning scores from your own logged sits.
 - Other counties.
 
 See `RESEARCH.md` for the evidence and its limits, `DATA_SOURCES.md` for every source,

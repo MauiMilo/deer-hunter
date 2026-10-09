@@ -70,3 +70,10 @@ def test_every_coos_unit_has_each_season():
     for unit in ("A", "B", "C1", "C2", "D1", "E"):
         for method in ("archery", "muzzleloader", "firearm", "youth"):
             assert any(unit in s["units"] and s["method"] == method for s in regs["seasons"]), (unit, method)
+
+
+def test_crossbow_note_lists_the_exceptions():
+    regs = yaml.safe_load((DATA_DIR / "regulations" / "nh-deer-2026.yaml").read_text())
+    note = regs["method_notes"]["crossbow"]
+    for must in ("68", "Disabled Crossbow Permit", "Youth Deer Weekend", "firearms season", "muzzleloader season", "E)"):
+        assert must in note, must

@@ -30,7 +30,17 @@ sources:
     title: "Hunting on State Lands FAQs"
     url: https://wildlife.nh.gov/hunting-nh/where-hunt/hunting-state-lands-faqs
     publisher: NH Fish and Game Department
-    retrieved: "2026-10-08"
+    retrieved: "2026-10-09"
+  weeks_park_page:
+    title: "Weeks State Park & The John Wingate Weeks Historic Site"
+    url: https://www.nhstateparks.org/find-parks-trails/weeks-state-park
+    publisher: NH Division of Parks and Recreation
+    retrieved: "2026-10-09"
+  conte_hunting:
+    title: "Silvio O. Conte National Fish and Wildlife Refuge - Hunting"
+    url: https://www.fws.gov/refuge/silvio-o-conte/visit-us/activities/hunting
+    publisher: US Fish and Wildlife Service
+    retrieved: "2026-10-09"
   nhfg_where_to_hunt:
     title: "Where to Hunt"
     url: https://wildlife.nh.gov/hunting-nh/where-hunt
@@ -64,6 +74,11 @@ sources:
     publisher: Dartmouth College Outdoor Programs
     source_date: "2012 (printed Spring 2012)"
     retrieved: "2026-10-08"
+  dartmouth_grant_page:
+    title: "Second College Grant - access and vehicle passes"
+    url: https://outdoors.dartmouth.edu/services/collegegrant
+    publisher: Dartmouth College Outdoor Programs
+    retrieved: "2026-10-09"
   umbagog_hunting:
     title: "Lake Umbagog National Wildlife Refuge - Hunting"
     url: https://fws.gov/refuge/umbagog/visit-us/activities/hunting
@@ -107,14 +122,47 @@ rules:
     status: verified
     when:
       name_contains: "Second College Grant"
-    summary: "Dartmouth keeps the Second College Grant open to public hunting, except areas temporarily closed for logging, research or safety."
+    summary: "Dartmouth's hunting brochure says the Second College Grant is open to public hunting, except areas temporarily closed for logging, research or safety. Plan to walk in."
     restrictions:
-      - "Bear season through the end of firearm deer season: no day passes. Only cabin renters may drive in; everyone else walks or bikes in from the gates."
-      - "During deer season, register vehicles at the main gate off Route 16 in Wentworth's Location."
+      - "The public can't drive in at any time of year: vehicle passes are only for Dartmouth-affiliated visitors and their guests, and none are issued Oct 1 - Nov 28. Walk in from the gates; foot travel is welcome any time."
+      - "Report deer and bear to the gatekeeper at the main gate off Route 16."
       - "No baiting. No road hunting. No shooting within 15 ft of open roads or marked trails or within 300 ft of a cabin."
-      - "No camping or open fires."
-    sources: [dartmouth_grant]
-    note: "Dartmouth's brochure is from 2012. Call the Dartmouth Woodlands Office before your trip to confirm current rules."
+      - "No ATVs or snowmobiles to haul out game. No camping or open fires."
+    sources: [dartmouth_grant, dartmouth_grant_page]
+    note: "The hunting rules come from a 2012 brochure; Dartmouth's current web page covers access but doesn't mention hunting. Call College Forester Kevin Evans (603-449-2049) to confirm before your trip."
+
+  - id: dncr-state-historic-sites
+    status: prohibited
+    when:
+      agency_code: [31000]
+      name_contains: "Historic Site"
+    summary: "Fish and Game's State Lands FAQ says hunting is not allowed at any DNCR state historic site."
+    sources: [nhfg_state_lands_faq]
+
+  - id: pondicherry-wildlife-refuge
+    status: prohibited
+    when:
+      name_contains: "Pondicherry Wildlife Refuge"
+    summary: "Fish and Game's State Lands FAQ lists the Pondicherry Wildlife Refuge in Jefferson as closed to hunting."
+    sources: [nhfg_state_lands_faq]
+
+  - id: conte-pondicherry-division
+    status: unknown
+    when:
+      agency_code: [21000]
+      name_any: ["Pondicherry", "Conte"]
+    summary: "Pondicherry Division of the Silvio O. Conte refuge. The Fish and Wildlife Service says the division supports deer hunting but that not all parts of the refuge are open, and the closed areas weren't found. Fish and Game lists the Pondicherry Wildlife Refuge, inside this area, as closed."
+    restrictions:
+      - "Get the refuge's New Hampshire hunting information sheet or call the refuge for closed areas before hunting."
+    sources: [conte_hunting, nhfg_state_lands_faq]
+
+  - id: weeks-state-park
+    status: unknown
+    when:
+      agency_code: [31000]
+      name_contains: "Weeks State Park"
+    summary: "Weeks State Park includes the John Wingate Weeks Historic Site, and Fish and Game says hunting isn't allowed at state historic sites. It's unclear how much of the park that covers; ask NH State Parks before hunting."
+    sources: [weeks_park_page, nhfg_state_lands_faq]
 
   - id: granit-no-public-access
     status: prohibited
@@ -129,7 +177,7 @@ rules:
       agency_code: [31000]
       protection_type_code: [FO]
     name_excludes: ["Shieling", "Opechee", "Opeechee", "Urban Forestry", "Robert Frost", "Odiorne"]
-    summary: "State park or forest owned by NH DNCR. State rule Res 7301.10 allows hunting on these properties except a short list of named sites, none in Coos County."
+    summary: "State park or forest owned by NH DNCR. Fish and Game's State Lands FAQ and rule Res 7301.10 name the few state properties closed to hunting; this isn't one of them."
     restrictions:
       - "No firearm discharge within 300 ft of occupied developed areas such as campgrounds, beaches and playgrounds."
       - "Portable tree stands only, Aug 1 - Jan 31, no nails or damage to trees. No permanent stands."
@@ -144,7 +192,7 @@ rules:
     summary: "White Mountain National Forest land. The Forest Service allows hunting on all WMNF land, including Wilderness, under state regulations."
     restrictions:
       - "No discharge within 150 yards of a residence, building, campsite, developed recreation site or occupied area."
-      - "No shooting across or on a Forest Service road or an adjacent body of water."
+      - "No shooting across or on a Forest Service road or an adjacent body of water, or into a cave."
       - "Private inholdings inside the forest need landowner permission."
     sources: [wmnf_hunting]
 

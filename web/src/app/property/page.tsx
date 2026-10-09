@@ -302,7 +302,7 @@ function DaySection({
       </SectionTitle>
       <Card className="space-y-3 p-4">
         <div className={`text-sm font-medium ${season.open ? "text-ok" : "text-bad"}`}>{season.message}</div>
-        {(settings.method === "archery" || settings.method === "muzzleloader") && regs.method_notes.crossbow && (
+        {settings.method !== "firearm" && regs.method_notes.crossbow && (
           <p className="text-xs text-muted">{regs.method_notes.crossbow}</p>
         )}
         {(settings.method === "firearm" || settings.method === "muzzleloader") && regs.method_notes.registration && (

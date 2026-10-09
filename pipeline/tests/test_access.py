@@ -28,7 +28,7 @@ def test_dncr_state_forest_is_verified_with_sources(rules):
     assert r.status == "verified"
     assert r.rule_id == "dncr-fee-land"
     assert r.sources and all(s["url"].startswith("https://") for s in r.sources)
-    assert r.checked_on == "2026-10-08"
+    assert r.checked_on == "2026-10-09"
 
 
 def test_dncr_named_exclusion_is_not_verified(rules):
@@ -65,7 +65,9 @@ def test_conflict_with_no_access_record_is_flagged(rules):
 def test_wmnf_and_umbagog(rules):
     assert rules.evaluate(prop(agency_code=22000, protection_type_code="FO")).status == "verified"
     assert rules.evaluate(prop(name="Lake Umbagog NWR", agency_code=21000)).status == "verified"
-    assert rules.evaluate(prop(name="Pondicherry Division", agency_code=21000)).status == "unknown"
+    r = rules.evaluate(prop(name="Pondicherry Unit of Silvio O Conte NFWR", agency_code=21000))
+    assert r.status == "unknown"
+    assert r.rule_id == "conte-pondicherry-division"
 
 
 def test_fish_and_game_land_needs_checking(rules):
@@ -147,3 +149,29 @@ def test_dartmouth_grant_carries_its_age_warning(rules):
     r = rules.evaluate(prop(name="Second College Grant", agency_code=50420))
     assert r.status == "verified"
     assert any("2012" in n for n in r.notes)
+
+
+def test_dartmouth_grant_is_walk_in_for_the_public(rules):
+    r = rules.evaluate(prop(name="Second College Grant", agency_code=50420))
+    text = " ".join(r.restrictions)
+    assert "Dartmouth-affiliated" in text and "Oct 1 - Nov 28" in text
+    assert {s["id"] for s in r.sources} == {"dartmouth_grant", "dartmouth_grant_page"}
+
+
+def test_pondicherry_wildlife_refuge_is_closed(rules):
+    # Fish and Game lists it as closed, even though GRANIT codes public access as allowed.
+    r = rules.evaluate(prop(name="Pondicherry Wildlife Refuge", agency_code=50130, protection_type_code="CE", public_access_code=1))
+    assert r.status == "prohibited"
+    assert r.sources[0]["id"] == "nhfg_state_lands_faq"
+
+
+def test_state_historic_sites_are_closed(rules):
+    r = rules.evaluate(prop(name="Fort Stark State Historic Site", agency_code=31000, protection_type_code="FO"))
+    assert r.status == "prohibited"
+
+
+def test_weeks_state_park_is_not_auto_verified(rules):
+    # It contains a state historic site, where hunting is not allowed.
+    r = rules.evaluate(prop(name="Weeks State Park", agency_code=31000, protection_type_code="FO"))
+    assert r.status == "unknown"
+    assert r.rule_id == "weeks-state-park"

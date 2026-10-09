@@ -5,7 +5,7 @@ fetched, when, and whether it worked in `web/public/data/manifest.json` (shown i
 **Settings → Data and sources**). If a source fails, the feature that needs it is switched off for
 that run and the failure is listed there. Nothing is filled in with made-up values.
 
-Checked: 2026-10-08.
+Checked: 2026-10-08; hunting-permission and crossbow sources rechecked 2026-10-09.
 
 ## Land and boundaries
 
@@ -19,14 +19,17 @@ Checked: 2026-10-08.
 
 | Source | Used for | Date |
 |---|---|---|
-| 2026-27 NH Hunting Digest (eRegulations) — deer seasons, regulations, WMUs | Season dates by method and WMU, legal hours, crossbow and bag rules | Last updated 2026-08-27. The online season table had a broken layout and was reconstructed; **not yet checked against the printed digest** (the app says so). |
+| 2026-27 NH Hunting Digest (eRegulations) — deer seasons, regulations, WMUs | Season dates by method and WMU, legal hours, crossbow and bag rules | Last updated 2026-08-27. The online season table had a broken layout and was reconstructed. On 2026-10-09 a separate check matched every Coos date against the online table and the season formula in rule Fis 301.03. Crossbow exceptions (age 68+, Disabled Crossbow Permit, Youth Deer Weekend, firearms and muzzleloader seasons) come from the digest PDF (`eregulations.com/assets/docs/guides/26NHHD_LR2.pdf`, pp. 7-8). **Not yet checked against the printed digest** (the app says so). The Justia copy of Fis 301.03 is out of date on crossbows; don't use it. |
 | NH Admin. Rules **Res 7301.10** (DNCR parks and forests) | Hunting allowed on state parks/forests except a named list (none in Coos); 300 ft rule near occupied developed areas; tree stands | Retrieved 2026-10-08 (via Justia) |
-| NH Admin. Rules **Chapter Fis 900** (Fish and Game lands), **Fis 902.02**, **Fis 903.07** | Fish and Game lands in Table 900.01 open to hunting; Connecticut Lakes Natural Area limits (no baiting, no camping, vehicles) | Chapter last amended 2017-02-24; retrieved 2026-10-08. Fish and Game held a hearing in Oct 2025 on re-adopting Fis 900, so watch for changes. |
+| NH Admin. Rules **Chapter Fis 900** (Fish and Game lands), **Fis 902.02**, **Fis 903.07** | Fish and Game lands in Table 900.01 open to hunting; Connecticut Lakes Natural Area limits (no baiting, no camping, vehicles) | Chapter last amended 2017-02-24; retrieved 2026-10-08. Fish and Game proposed re-adopting Fis 900 (public hearing Dec 1, 2025). The proposal replaces Table 900.01 with an online list and renumbers some sections; whether it was adopted **couldn't be confirmed**, so the section numbers cited here may be out of date. |
 | NH Parks — Connecticut Lakes Headwaters forest rules sign | Hunting permitted with restrictions on the Headwaters easement land | No date on sign; retrieved 2026-10-08 |
 | USDA Forest Service — WMNF Hunting & Shooting | Hunting allowed on all WMNF land under state rules; 150-yard and road rules | Page updated 2026-03-24 |
 | USFWS — Lake Umbagog NWR Hunting | Deer hunting allowed; stand, baiting and vehicle rules | No date; retrieved 2026-10-08 |
-| Dartmouth — Second College Grant hunting brochure | Public hunting allowed; walk-in only during deer season unless renting a cabin | **Printed 2012**; the app tells you to confirm with Dartmouth |
-| NH Fish and Game — Hunting on State Lands FAQs, Where to Hunt | Compact-zone rule; LCIP easements; general guidance | No date; retrieved 2026-10-08 |
+| Dartmouth — Second College Grant hunting brochure | Public hunting allowed; no baiting; shooting distances; report deer at the gate | **Printed 2012**; the app tells you to call the College Forester |
+| Dartmouth — Second College Grant web page | Vehicle passes only for Dartmouth-affiliated visitors, none Oct 1 - Nov 28; walk-in welcome any time | Retrieved 2026-10-09; doesn't mention hunting |
+| NH Fish and Game — Hunting on State Lands FAQs, Where to Hunt | State lands closed to hunting (all DNCR state historic sites, Pondicherry Wildlife Refuge in Jefferson, and sites outside Coos); compact-zone rule; LCIP easements | No date; FAQ retrieved 2026-10-09 |
+| NH State Parks — Weeks State Park page | The park includes the John Wingate Weeks Historic Site, so it's left "unknown" instead of verified | Retrieved 2026-10-09 |
+| USFWS — Silvio O. Conte NFWR Hunting | Pondicherry Division "supports hunting for white-tailed deer", but not all parts are open; closed areas not found, so it stays "unknown" | Retrieved 2026-10-09. The refuge's NH information sheet couldn't be fetched. |
 
 All hunting-permission rules and their sources live in `pipeline/data/access_rules.yaml`. Your own
 checks go in `pipeline/data/verifications.yaml` (needs a source and a date to count as verified).
