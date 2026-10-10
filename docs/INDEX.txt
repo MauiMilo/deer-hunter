@@ -45,3 +45,7 @@ ok https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPPlus/ImageServer
 ok https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A90%5D%3B%28way%5Bhighway%5D%2845.075%2C-71.455%2C45.102%2C-71.418%29%3Bway%5Bhighway%5D%2845.215%2C-71.268%2C45.245%2C-71.205%29%3B%29%3Bout%20tags%20geom%3B
 ok https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-7952469.1,5634675.0,-7951479.3,5635664.8&bboxSR=3857&imageSR=3857&size=700,700&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&f=image
 ok https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPPlus/ImageServer/exportImage?bbox=-7952469.1,5634675.0,-7951479.3,5635664.8&bboxSR=3857&imageSR=3857&size=1200,1200&format=jpg&f=image
+ok https://nhgeodata.unh.edu/nhgeodata/rest/services/TN/RoadsForDOTViewer/MapServer/5?f=json
+ok https://nhgeodata.unh.edu/nhgeodata/rest/services/TN/RoadsForDOTViewer/MapServer/5/query?where=1%3D1&geometry=-71.85%2C44.2%2C-70.95%2C45.31&geometryType=esriGeometryEnvelope&inSR=4326&outFields=LEGIS_CLASS%2COWNERSHIP_DESCR&returnDistinctValues=true&returnGeometry=false&f=json
+ok https://nhgeodata.unh.edu/nhgeodata/rest/services/TN/RoadsForDOTViewer/MapServer/5/query?where=STREET+LIKE+%27%25COMSTOCK%25%27&outFields=STREET%2CLEGIS_CLASS%2CSURF_TYPE%2COWNERSHIP_DESCR%2CWINTER_MAINT&returnGeometry=false&f=json
+ok https://tnmaccess.nationalmap.gov/api/v1/products?datasets=Digital%20Elevation%20Model%20%28DEM%29%201%20meter&bbox=-71.85,44.2,-70.95,45.31&max=1000&outputFormat=JSON
