@@ -76,9 +76,40 @@ def dot_not_drivable(legis_class: Any, ownership: Any) -> bool:
 
 
 def overpass_query(envelope) -> str:
+    """Drivable road types, plus any way marked closed to vehicles (so a closed stretch can
+    override a public-road record that says otherwise)."""
     w, s, e, n = envelope
     kinds = "|".join(sorted(DRIVABLE_OSM))
-    return f'[out:json][timeout:240];way["highway"~"^({kinds})$"]({s},{w},{n},{e});out tags geom;'
+    bb = f"({s},{w},{n},{e})"
+    closed = "|".join(sorted(GATED_ACCESS))
+    return (
+        f'[out:json][timeout:240];('
+        f'way["highway"~"^({kinds})$"]{bb};'
+        f'way["highway"]["motor_vehicle"~"^({closed})$"]{bb};'
+        f'way["highway"]["access"~"^({closed})$"]{bb};'
+        f');out tags geom;'
+    )
+
+
+def close_where_osm_closed(roads_wgs: gpd.GeoDataFrame, near_m: float = 20.0, share: float = 0.6) -> int:
+    """Mark DOT segments gated when most of their length runs along a way OpenStreetMap marks
+    closed to vehicles (e.g. a town road that turns into an ATV-only trail). Returns how many."""
+    if roads_wgs.empty or "source" not in roads_wgs:
+        return 0
+    ea = roads_wgs.to_crs(EQUAL_AREA)
+    closed = ea[(ea["source"] == "osm") & ea["gated"].astype(bool)]
+    if closed.empty:
+        return 0
+    zone = shapely.union_all(closed.geometry.buffer(near_m).values)
+    n = 0
+    for i in ea.index[(ea["source"] == "dot") & ~ea["gated"].astype(bool)]:
+        g = ea.at[i, "geometry"]
+        if g is None or g.is_empty or not g.intersects(zone):
+            continue
+        if g.intersection(zone).length >= share * g.length:
+            roads_wgs.at[i, "gated"] = True
+            n += 1
+    return n
 
 
 def parse_overpass(doc: dict[str, Any]) -> gpd.GeoDataFrame:

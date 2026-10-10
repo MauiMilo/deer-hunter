@@ -157,3 +157,25 @@ def test_water_distance_from_land_cover():
 )
 def test_dot_roads_you_cant_drive(cls, own, gated):
     assert roads.dot_not_drivable(cls, own) is gated
+
+
+def test_osm_closed_way_overrides_a_dot_road():
+    import geopandas as gpd
+    from shapely.geometry import LineString
+    from pyproj import Transformer
+
+    to_wgs = Transformer.from_crs("EPSG:5070", "EPSG:4326", always_xy=True).transform
+    def line(x0, x1, y):
+        return LineString([to_wgs(x0, y), to_wgs(x1, y)])
+
+    df = gpd.GeoDataFrame(
+        {
+            "name": ["Comstock Hill Road", "Open Road", "Alexa Way"],
+            "source": ["dot", "dot", "osm"],
+            "gated": [False, False, True],
+        },
+        geometry=[line(0, 500, 0), line(0, 500, 300), line(-50, 600, 5)],
+        crs="EPSG:4326",
+    )
+    assert roads.close_where_osm_closed(df) == 1
+    assert list(df["gated"]) == [True, False, True]

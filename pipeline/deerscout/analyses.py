@@ -169,6 +169,9 @@ def run_roads(ctx: Context) -> None:
         log.error("trails failed: %s", e)
     t0 = time.time()
     all_roads = gpd.GeoDataFrame(gpd.pd.concat(frames, ignore_index=True), geometry="geometry", crs=WGS84)
+    closed = roads.close_where_osm_closed(all_roads)
+    if closed:
+        log.info("%d public-road segments marked closed where OpenStreetMap shows no vehicles", closed)
     ctx.net = roads.Network.build(all_roads, trails)
     ctx.net.build_distance_grid(analysis_bounds(ctx))
     log.info("road network indexed and distance grid built in %.0fs (peak memory %.0f MB)", time.time() - t0, mem_mb())
