@@ -59,8 +59,8 @@ export function SpotCard({
       </div>
       {a && (
         <p className="mt-3 text-sm">
-          {a.road_name ? `From ${a.road_name}` : "From the nearest road"}, walk about {(a.distance_m / 1609.34).toFixed(1)} mi heading{" "}
-          {compass(ev.approachBearing ?? 0)}.
+          {a.road_name ? `From ${a.road_name}` : "From the nearest mapped road"}, walk about {(a.distance_m / 1609.34).toFixed(1)} mi heading{" "}
+          {compass(ev.approachBearing ?? 0)}. <span className="text-faint">Check that the road is open to trucks.</span>
           {ev.approachFit && ev.approachFit !== "marginal" && (
             <span className={ev.approachFit === "good" ? "text-ok" : "text-bad"}>
               {" "}
@@ -75,10 +75,13 @@ export function SpotCard({
           .map((n) => (
             <li key={n}>{n}</li>
           ))}
-        {spot.reasons.map((r) => (
-          <li key={r}>{r}</li>
-        ))}
+        {spot.reasons
+          .filter((r) => r !== spot.lidar?.detail)
+          .map((r) => (
+            <li key={r}>{r}</li>
+          ))}
       </ul>
+      <LidarLine spot={spot} />
       <div className="mt-2 flex items-center justify-between text-xs text-faint">
         <span>Confidence: {spot.confidence} · a terrain candidate, not confirmed sign</span>
         <a
@@ -92,10 +95,29 @@ export function SpotCard({
       </div>
       {onShow && (
         <button type="button" onClick={onShow} className="mt-3 min-h-11 w-full rounded-xl bg-surface-2 text-sm font-medium ring-1 ring-line">
-          Show on map
+          Close-up on map
         </button>
       )}
     </div>
+  );
+}
+
+const LIDAR_TEXT: Record<string, { label: string; cls: string }> = {
+  confirmed: { label: "Checked at 1 m LiDAR", cls: "text-ok" },
+  moved: { label: "Adjusted with 1 m LiDAR", cls: "text-ok" },
+  not_confirmed: { label: "Not confirmed by 1 m LiDAR", cls: "text-warn" },
+  not_checked: { label: "Not checked at 1 m", cls: "text-faint" },
+};
+
+/** What the 1 m lidar re-check found, in one line. */
+export function LidarLine({ spot }: { spot: Spot }) {
+  const l = spot.lidar;
+  if (!l) return null;
+  const t = LIDAR_TEXT[l.verdict] ?? LIDAR_TEXT.not_checked;
+  return (
+    <p className="mt-2 text-sm">
+      <span className={`font-medium ${t.cls}`}>{t.label}:</span> <span className="text-muted">{l.detail}</span>
+    </p>
   );
 }
 

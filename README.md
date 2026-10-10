@@ -27,12 +27,17 @@ check the NH Hunting Digest, posted signs and property rules.
   evidence each rests on, and what's missing.
 - **Finds scouting spots**: about 1,100 saddles and benches from the elevation data across the
   county, scored for nearby food/cover edges, walk-in distance, trails and boundaries, with the winds
-  that suit each one and the direction to walk in from.
+  that suit each one and the direction to walk in from. Each spot is then re-checked against 1-meter
+  lidar (flat shelf? real saddle? water?) and labeled with what the check found. Spots on pond
+  shores are dropped.
 - **Plans the day** with a 7-day forecast (Open-Meteo): conditions score, safety warnings, wind check
   for each spot and for the walk in, and five seasons of wind history as wind roses.
-- **Keeps a field log**: GPS waypoints, sightings by hour, notes, GPX export. Stored only on the phone.
-- **Works like an app on iPhone**: add to Home Screen, dark pre-dawn theme, GPS distances, last data
-  available without signal.
+- **Keeps a field log**: GPS waypoints, sightings by hour, notes, GPX export, and import of your own
+  GPX/KML/GeoJSON files (onX, Gaia, GPS units). Stored only on the phone.
+- **Works with no signal**: the whole app and its data are saved on the phone when you first open
+  it; tap **Save map** under a property's map (or save the view on the Map tab) to keep its topo,
+  satellite and LiDAR tiles. The last forecast stays available, labeled with its age.
+- **Works like an app on iPhone**: add to Home Screen, dark pre-dawn theme, GPS distances.
 
 ## What's not done yet
 
@@ -40,7 +45,7 @@ check the NH Hunting Digest, posted signs and property rules.
 - Real drive times (distances are straight-line with a rough drive estimate).
 - Season dates match the online digest and the season formula in the rules, but haven't been
   checked against the printed digest.
-- Offline map tiles, GPX/KML import, and tuning scores from your own logged sits.
+- Tuning scores from your own logged sits (needs a season of logs first).
 - Other counties.
 
 See `RESEARCH.md` for the evidence and its limits, `DATA_SOURCES.md` for every source,

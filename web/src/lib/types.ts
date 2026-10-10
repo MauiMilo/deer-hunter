@@ -65,6 +65,8 @@ export interface Spot {
   travel_axis_deg: number;
   good_winds_from: [number, number][];
   approach: { road_name: string | null; distance_m: number; road_bearing_deg: number } | null;
+  /** Result of re-checking the spot against 1 m lidar (missing in older data). */
+  lidar?: { res_m: number; verdict: "confirmed" | "moved" | "not_confirmed" | "not_checked"; detail: string; source?: string };
 }
 
 export interface Unit {

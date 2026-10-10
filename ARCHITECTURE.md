@@ -19,7 +19,10 @@ cover, terrain, scoring) only changes when the source data changes, so it's comp
 saved as files. The phone gets the forecast straight from Open-Meteo. That means:
 
 - nothing to keep running or pay for; any static host works (Cloudflare Pages planned);
-- the app keeps working with weak signal after the first load (service worker caches the data);
+- the app keeps working with no signal: a service worker (`web/public/sw.js`) saves every app and data
+  file on install (list written at build time to `precache.json`), serves map tiles from the phone
+  first (areas you save, plus recently viewed tiles), and app files are tried on the network for 4
+  seconds before falling back to the saved copy;
 - personal notes and saved places never leave the phone.
 
 A server becomes worth it when notes need to sync between devices or when the data outgrows static
@@ -40,7 +43,8 @@ files (statewide LiDAR, vector tiles). The pipeline's outputs would load straigh
 | `landcover.py` | NLCD land cover download and per-block habitat stats |
 | `roads.py` | DOT roads, OpenStreetMap logging roads, trails; distances and road-zone shares |
 | `terrain.py` | 3DEP elevation tiles; slope, aspect, landform position, saddles, benches |
-| `spots.py` | Scores candidate spots and works out which winds suit them |
+| `spots.py` | Scores candidate spots, drops ones on pond shores, and works out which winds suit them |
+| `lidar1m.py` | Re-checks each candidate against the 1 m lidar DEM (flat shelf, real saddle, water) and moves or marks it |
 | `windhistory.py` | Five seasons of hourly wind → wind roses with circular statistics |
 | `scoring.py` + `factors.py` + `data/scoring.yaml` | Explainable Property Quality Score with coverage and confidence |
 | `analyses.py` | Runs the optional analyses; any failure is logged and that factor is skipped |
@@ -69,7 +73,7 @@ Next.js 16 (static export), React 19, Tailwind 4, MapLibre GL 5.
 | Screen | What it does |
 |---|---|
 | **Hunt** (`/`) | Pick a day, morning/evening, method; ranks legal, in-season blocks by property quality, the day's conditions (including whether any spot suits the wind) and distance from you |
-| **Map** (`/map/`) | Topo, satellite and LiDAR relief base maps; land cover layer; properties colored by permission; blocks; scouting spots |
+| **Map** (`/map/`) | Topo, satellite and LiDAR relief base maps; land cover layer; properties colored by permission; blocks; scouting spots; your imported files; save the view for offline |
 | **Property** (`/property/?id=…`) | Permission with sources and rules, season and legal hours, 7-day outlook, scouting spots ranked for the day's wind, usual winds for the month, score breakdown, GRANIT records, your notes |
 | **Saved** | Favorites and notes (phone only) |
 | **Settings** | Starting point, score weights, trip blend, data sources and run status |

@@ -11,24 +11,18 @@ export const BASE_LABELS: Record<BaseLayer, string> = {
   hillshade: "LiDAR relief",
 };
 
-// All public-domain US government services (USGS The National Map / 3DEP).
-const USGS = "https://basemap.nationalmap.gov/arcgis/rest/services";
-const HILLSHADE =
-  "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage" +
-  "?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png&f=image" +
-  "&renderingRule=" +
-  encodeURIComponent(JSON.stringify({ rasterFunction: "Hillshade Multidirectional" }));
+import { GLYPHS, HILLSHADE_MINZOOM, HILLSHADE_TILES, IMAGERY_TILES, LABEL_FONT, MAXZOOM, TOPO_TILES } from "@/lib/mapsources";
 
 const ATTR = '<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank">USGS The National Map</a> · Lands: <a href="https://granit.unh.edu" target="_blank">NH GRANIT</a>';
 
 function style(): StyleSpecification {
   return {
     version: 8,
-    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+    glyphs: GLYPHS,
     sources: {
-      topo: { type: "raster", tiles: [`${USGS}/USGSTopo/MapServer/tile/{z}/{y}/{x}`], tileSize: 256, maxzoom: 16, attribution: ATTR },
-      imagery: { type: "raster", tiles: [`${USGS}/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}`], tileSize: 256, maxzoom: 16, attribution: ATTR },
-      hillshade: { type: "raster", tiles: [HILLSHADE], tileSize: 256, minzoom: 8, maxzoom: 17, attribution: ATTR },
+      topo: { type: "raster", tiles: [TOPO_TILES], tileSize: 256, maxzoom: MAXZOOM.topo, attribution: ATTR },
+      imagery: { type: "raster", tiles: [IMAGERY_TILES], tileSize: 256, maxzoom: MAXZOOM.imagery, attribution: ATTR },
+      hillshade: { type: "raster", tiles: [HILLSHADE_TILES], tileSize: 256, minzoom: HILLSHADE_MINZOOM, maxzoom: MAXZOOM.hillshade, attribution: ATTR },
     },
     layers: [
       { id: "bg", type: "background", paint: { "background-color": "#d9d6cc" } },
@@ -52,6 +46,12 @@ interface Props {
   waypoints?: { type: "FeatureCollection"; features: unknown[] } | null;
   base?: BaseLayer;
   fitBbox?: [number, number, number, number] | null;
+  /** How far in fitBbox may zoom (default 14; a spot close-up goes further). */
+  fitMaxZoom?: number;
+  /** Your imported GPX/KML/GeoJSON layers (kept on the phone). */
+  imported?: { type: "FeatureCollection"; features: unknown[] } | null;
+  /** Called with the visible map box (west, south, east, north) and zoom after the map moves. */
+  onView?: (bbox: [number, number, number, number], zoom: number) => void;
   center?: [number, number];
   zoom?: number;
   highlightPropertyId?: string | null;
@@ -66,6 +66,9 @@ export default function MapView({
   className = "",
   base = "topo",
   fitBbox,
+  fitMaxZoom = 14,
+  imported = null,
+  onView,
   center = [-71.3, 45.05],
   zoom = 9,
   highlightPropertyId = null,
@@ -85,10 +88,10 @@ export default function MapView({
   const map = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const handlers = useRef({ onSelectProperty, onSelectUnit, onSelectSpot });
+  const handlers = useRef({ onSelectProperty, onSelectUnit, onSelectSpot, onView });
   useEffect(() => {
-    handlers.current = { onSelectProperty, onSelectUnit, onSelectSpot };
-  }, [onSelectProperty, onSelectUnit, onSelectSpot]);
+    handlers.current = { onSelectProperty, onSelectUnit, onSelectSpot, onView };
+  }, [onSelectProperty, onSelectUnit, onSelectSpot, onView]);
 
   useEffect(() => {
     let disposed = false;
@@ -119,6 +122,11 @@ export default function MapView({
         const msg = (e as { error?: Error }).error?.message ?? "";
         if (/properties|blocks/.test(msg)) setFailed("Property boundaries couldn't load.");
       });
+      const report = () => {
+        const b = m.getBounds();
+        handlers.current.onView?.([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], m.getZoom());
+      };
+      m.on("moveend", report);
       m.on("load", () => {
         m.addSource("properties", { type: "geojson", data: "/data/properties.geojson", promoteId: "id" });
         m.addSource("blocks", { type: "geojson", data: "/data/blocks.geojson", promoteId: "id" });
@@ -138,7 +146,7 @@ export default function MapView({
           minzoom: 11.5,
           layout: {
             "text-field": ["concat", ["slice", ["get", "label"], 6], "\n", ["to-string", ["coalesce", ["get", "score"], "–"]]],
-            "text-font": ["Open Sans Semibold"],
+            "text-font": [LABEL_FONT],
             "text-size": 12,
           },
           paint: { "text-color": "#111", "text-halo-color": "#fff", "text-halo-width": 1.6 },
@@ -150,7 +158,7 @@ export default function MapView({
           type: "symbol",
           source: "properties",
           minzoom: 10,
-          layout: { "text-field": ["get", "name"], "text-font": ["Open Sans Semibold"], "text-size": 12, "symbol-placement": "point", "text-max-width": 10 },
+          layout: { "text-field": ["get", "name"], "text-font": [LABEL_FONT], "text-size": 12, "symbol-placement": "point", "text-max-width": 10 },
           paint: { "text-color": "#102018", "text-halo-color": "#fff", "text-halo-width": 1.5 },
         });
 
@@ -194,7 +202,7 @@ export default function MapView({
           minzoom: 12.5,
           layout: {
             "text-field": ["concat", ["match", ["get", "kind"], "saddle", "Saddle ", "Bench "], ["to-string", ["get", "score"]]],
-            "text-font": ["Open Sans Semibold"],
+            "text-font": [LABEL_FONT],
             "text-size": 11,
             "text-offset": [0, 1.2],
             "text-anchor": "top",
@@ -217,6 +225,7 @@ export default function MapView({
         m.on("mouseenter", "prop-fill", () => (m.getCanvas().style.cursor = "pointer"));
         m.on("mouseleave", "prop-fill", () => (m.getCanvas().style.cursor = ""));
         setReady(true);
+        report();
       });
     })().catch((e: Error) => setFailed(`Map couldn't start: ${e.message}`));
     return () => {
@@ -255,7 +264,7 @@ export default function MapView({
       type: "symbol",
       source: "waypoints",
       minzoom: 12,
-      layout: { "text-field": ["get", "name"], "text-font": ["Open Sans Semibold"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top" },
+      layout: { "text-field": ["get", "name"], "text-font": [LABEL_FONT], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top" },
       paint: { "text-color": "#08203a", "text-halo-color": "#fff", "text-halo-width": 1.5 },
     });
   }, [waypoints, ready]);
@@ -298,9 +307,44 @@ export default function MapView({
         [fitBbox[0], fitBbox[1]],
         [fitBbox[2], fitBbox[3]],
       ],
-      { padding: 36, maxZoom: 14, duration: 600 },
+      { padding: 36, maxZoom: fitMaxZoom, duration: 600 },
     );
-  }, [fitBbox, ready]);
+  }, [fitBbox, fitMaxZoom, ready]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !imported) return;
+    const data = imported as unknown as GeoJSON.FeatureCollection;
+    const src = m.getSource("imported") as import("maplibre-gl").GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data);
+      return;
+    }
+    m.addSource("imported", { type: "geojson", data });
+    m.addLayer({
+      id: "imp-line",
+      type: "line",
+      source: "imported",
+      filter: ["in", ["geometry-type"], ["literal", ["LineString", "MultiLineString", "Polygon", "MultiPolygon"]]],
+      paint: { "line-color": "#c15cff", "line-width": 3 },
+    });
+    m.addLayer({
+      id: "imp-dot",
+      type: "circle",
+      source: "imported",
+      filter: ["==", ["geometry-type"], "Point"],
+      paint: { "circle-radius": 6, "circle-color": "#c15cff", "circle-stroke-color": "#fff", "circle-stroke-width": 2 },
+    });
+    m.addLayer({
+      id: "imp-label",
+      type: "symbol",
+      source: "imported",
+      minzoom: 12,
+      filter: ["==", ["geometry-type"], "Point"],
+      layout: { "text-field": ["coalesce", ["get", "name"], ""], "text-font": [LABEL_FONT], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top" },
+      paint: { "text-color": "#3a0f52", "text-halo-color": "#fff", "text-halo-width": 1.5 },
+    });
+  }, [imported, ready]);
 
   return (
     <div className={`relative overflow-hidden ${className}`}>

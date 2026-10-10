@@ -26,7 +26,7 @@ export interface ForecastResult {
 
 const ENDPOINT = "https://api.open-meteo.com/v1/forecast";
 const HOURLY = "temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m";
-const CACHE_KEY = "ds.forecast.v1";
+const CACHE_KEY = "ds.forecast.v2";
 const CACHE_MS = 60 * 60 * 1000;
 
 /** Snap a point to a coarse grid so nearby blocks share one forecast request. */
@@ -88,39 +88,64 @@ export function parseResponse(json: unknown, keys: string[]): PointForecast[] {
   });
 }
 
-function readCache(): ForecastResult | null {
+// Each 0.2-degree cell's forecast is saved on the phone with the time it was fetched. Fresh ones
+// (under an hour) are reused; with no signal, saved ones up to STALE_MS old are shown, labeled.
+type Saved = Record<string, { point: PointForecast; fetchedAt: number }>;
+const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function readCache(): Saved {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ForecastResult;
-    return Date.now() - parsed.fetchedAt < CACHE_MS ? parsed : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) && !("points" in parsed) ? (parsed as Saved) : {};
   } catch {
-    return null;
+    return {};
   }
 }
 
-function writeCache(r: ForecastResult) {
+function writeCache(saved: Saved) {
+  const now = Date.now();
+  const kept: Saved = {};
+  for (const [k, v] of Object.entries(saved)) if (now - v.fetchedAt < STALE_MS) kept[k] = v;
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(r));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(kept));
   } catch {
-    /* storage full or blocked: forecast still works, just not cached */
+    /* storage full or blocked: forecast still works, just not saved */
   }
+}
+
+function fromSaved(saved: Saved, keys: string[], maxAge: number): ForecastResult | null {
+  const now = Date.now();
+  const hits = keys.map((k) => saved[k]).filter((v) => v && now - v.fetchedAt < maxAge);
+  if (!hits.length) return null;
+  return { points: hits.map((h) => h.point), fetchedAt: Math.min(...hits.map((h) => h.fetchedAt)) };
+}
+
+function ago(ms: number): string {
+  const h = Math.round((Date.now() - ms) / 3600000);
+  if (h < 1) return "less than an hour ago";
+  if (h < 48) return `${h} hour${h === 1 ? "" : "s"} ago`;
+  return `${Math.round(h / 24)} days ago`;
 }
 
 export async function fetchForecasts(cells: Map<string, { lat: number; lon: number }>, fetchImpl: typeof fetch = fetch): Promise<ForecastResult> {
   const keys = [...cells.keys()];
-  const cached = readCache();
-  if (cached && keys.every((k) => cached.points.some((p) => p.key === k))) return cached;
   if (!keys.length) return { points: [], fetchedAt: Date.now() };
+  const saved = readCache();
+  const fresh = fromSaved(saved, keys, CACHE_MS);
+  if (fresh && fresh.points.length === keys.length) return fresh;
   try {
     const res = await fetchImpl(buildUrl(keys.map((k) => cells.get(k)!)));
     const json = await res.json();
     if (!res.ok) throw new Error((json as Raw)?.reason || `HTTP ${res.status}`);
-    const out = { points: parseResponse(json, keys), fetchedAt: Date.now() };
-    writeCache(out);
-    return out;
+    const fetchedAt = Date.now();
+    const points = parseResponse(json, keys);
+    for (const p of points) saved[p.key] = { point: p, fetchedAt };
+    writeCache(saved);
+    return { points, fetchedAt };
   } catch (e) {
-    if (cached) return { ...cached, error: `Showing an older forecast: ${(e as Error).message}` };
+    const old = fromSaved(saved, keys, STALE_MS);
+    if (old) return { ...old, error: `No connection (${(e as Error).message}). Showing the forecast saved ${ago(old.fetchedAt)}.` };
     return { points: [], fetchedAt: Date.now(), error: `Forecast unavailable: ${(e as Error).message}` };
   }
 }

@@ -10,6 +10,8 @@ import { goodWindText } from "@/components/spot-ui";
 import { useFieldLog } from "@/components/useFieldLog";
 import { waypointsGeoJson } from "@/lib/fieldlog";
 import { ScorePill, StatusBadge } from "@/components/ui";
+import { OfflineSave } from "@/components/OfflineSave";
+import { useImported } from "@/components/useImported";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
@@ -23,6 +25,9 @@ export default function MapPage() {
   const spot = sel?.spot ? spotById.get(sel.spot) : undefined;
   const { waypoints } = useFieldLog();
   const wpGeo = useMemo(() => waypointsGeoJson(waypoints), [waypoints]);
+  const { geojson: imported } = useImported();
+  const [view, setView] = useState<{ bbox: [number, number, number, number]; zoom: number } | null>(null);
+  const [saveOpen, setSaveOpen] = useState(false);
 
   const prop = sel ? propertyById.get(sel.property) : undefined;
   const unit = sel?.unit ? unitById.get(sel.unit) : undefined;
@@ -42,6 +47,8 @@ export default function MapPage() {
         landcover={landcover}
         showLandcover={lcOn}
         waypoints={wpGeo}
+        imported={imported}
+        onView={(bbox, zoom) => setView({ bbox, zoom })}
         onSelectSpot={(id) => {
           const sp = spotById.get(id);
           if (sp) setSel({ property: sp.property_id, unit: sp.unit_id, spot: id });
@@ -88,6 +95,28 @@ export default function MapPage() {
             </label>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => setSaveOpen((v) => !v)}
+          aria-expanded={saveOpen}
+          className="pointer-events-auto min-h-10 rounded-xl bg-surface/95 px-3 text-xs font-medium shadow ring-1 ring-line backdrop-blur"
+        >
+          Save this view for offline
+        </button>
+        {saveOpen && view && (
+          <div className="pointer-events-auto w-full max-w-sm">
+            {view.zoom < 11.5 ? (
+              <div className="rounded-xl bg-surface p-3 text-sm shadow ring-1 ring-line">Zoom in closer first: saving works for a few square miles at a time.</div>
+            ) : (
+              <OfflineSave
+                key={view.bbox.join(",")}
+                name={`Map near ${((view.bbox[1] + view.bbox[3]) / 2).toFixed(3)}, ${((view.bbox[0] + view.bbox[2]) / 2).toFixed(3)}`}
+                bbox={view.bbox}
+                className="bg-surface shadow"
+              />
+            )}
+          </div>
+        )}
         {error && <div className="pointer-events-auto rounded-lg bg-bad/90 px-3 py-2 text-sm text-white">{error}</div>}
       </div>
 

@@ -3,6 +3,7 @@
 import { useData } from "@/components/DataProvider";
 import { DEFAULT_HOME, DEFAULT_SETTINGS, useSettings } from "@/components/useSettings";
 import { Card, Notice, PageHeader, SectionTitle } from "@/components/ui";
+import { OfflineAreas } from "@/components/OfflineSave";
 import { DEFAULT_TRIP_WEIGHTS, type TripWeights } from "@/lib/rank";
 import type { FactorKey } from "@/lib/types";
 
@@ -52,6 +53,11 @@ export default function SettingsPage() {
             </button>
           </div>
           <p className="text-xs text-faint">Stored only on this phone.</p>
+        </Card>
+
+        <SectionTitle>Offline maps</SectionTitle>
+        <Card className="p-4">
+          <OfflineAreas />
         </Card>
 
         <SectionTitle>Property score weights</SectionTitle>

@@ -41,6 +41,30 @@ describe("forecast parsing", () => {
     expect(cellKey(-71.41, 45.04)).toBe(cellKey(-71.39, 45.06));
   });
 
+  it("falls back to a saved forecast when there's no signal", async () => {
+    const store: Record<string, string> = {};
+    const ls = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => void (store[k] = v) };
+    const orig = (globalThis as { localStorage?: unknown }).localStorage;
+    (globalThis as { localStorage?: unknown }).localStorage = ls;
+    try {
+      const cells = new Map([["45.00,-71.40", { lat: 45, lon: -71.4 }]]);
+      const body = { latitude: 45, longitude: -71.4, hourly: { time: [1760000000], temperature_2m: [40], precipitation: [0], weather_code: [2], wind_speed_10m: [5], wind_direction_10m: [300], wind_gusts_10m: [9] } };
+      const ok = (() => Promise.resolve({ ok: true, json: () => Promise.resolve(body) })) as unknown as typeof fetch;
+      const first = await fetchForecasts(cells, ok);
+      expect(first.points).toHaveLength(1);
+      // Two hours later with no signal: the saved forecast comes back, labeled.
+      const saved = JSON.parse(store["ds.forecast.v2"]);
+      saved["45.00,-71.40"].fetchedAt -= 2 * 3600 * 1000;
+      store["ds.forecast.v2"] = JSON.stringify(saved);
+      const failing = (() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
+      const r = await fetchForecasts(cells, failing);
+      expect(r.points).toHaveLength(1);
+      expect(r.error).toMatch(/saved 2 hours ago/);
+    } finally {
+      (globalThis as { localStorage?: unknown }).localStorage = orig;
+    }
+  });
+
   it("returns an error instead of throwing when the network fails", async () => {
     const cells = new Map([["x", { lat: 45, lon: -71 }]]);
     const failing = (() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;

@@ -6,11 +6,12 @@ import { useData } from "@/components/DataProvider";
 import { useFieldLog } from "@/components/useFieldLog";
 import { useLocation } from "@/components/useLocation";
 import { useSaved } from "@/components/useSaved";
+import { useImported } from "@/components/useImported";
 import { Card, Chip, Notice, PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 import { ymdInTz } from "@/lib/dates";
 import { newId, sightingRate, toGpx, WAYPOINT_KINDS, type Observation, type WaypointKind } from "@/lib/fieldlog";
 
-type Tab = "places" | "waypoints" | "log";
+type Tab = "places" | "waypoints" | "log" | "files";
 
 export default function SavedPage() {
   const [tab, setTab] = useState<Tab>("places");
@@ -27,11 +28,15 @@ export default function SavedPage() {
         <Chip active={tab === "log"} onClick={() => setTab("log")}>
           Hunt log
         </Chip>
+        <Chip active={tab === "files"} onClick={() => setTab("files")}>
+          Map files
+        </Chip>
       </div>
       <div className="px-4">
         {tab === "places" && <Places />}
         {tab === "waypoints" && <Waypoints />}
         {tab === "log" && <HuntLog />}
+        {tab === "files" && <MapFiles />}
       </div>
     </div>
   );
@@ -292,5 +297,66 @@ function HuntLog() {
         </>
       )}
     </>
+  );
+}
+
+function MapFiles() {
+  const { layers, importFile, removeLayer } = useImported();
+  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="space-y-3">
+      <Card className="space-y-3 p-4 text-sm">
+        <p>
+          Bring in your own waypoints, tracks and boundaries from onX, Gaia, a GPS unit or Google Earth. They show on every map in purple and stay on
+          this phone.
+        </p>
+        <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-blaze font-semibold text-blaze-ink">
+          {busy ? "Reading…" : "Import a GPX, KML or GeoJSON file"}
+          <input
+            type="file"
+            accept=".gpx,.kml,.geojson,.json,application/gpx+xml,application/vnd.google-earth.kml+xml,application/geo+json"
+            className="sr-only"
+            disabled={busy}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              setBusy(true);
+              setMsg(null);
+              try {
+                const { layer, warnings } = await importFile(f);
+                const parts = [
+                  layer.points && `${layer.points} waypoint${layer.points === 1 ? "" : "s"}`,
+                  layer.lines && `${layer.lines} track${layer.lines === 1 ? "" : "s"}`,
+                  layer.areas && `${layer.areas} area${layer.areas === 1 ? "" : "s"}`,
+                ].filter(Boolean);
+                setMsg({ tone: "ok", text: [`Imported ${parts.join(", ")} from ${f.name}.`, ...warnings].join(" ") });
+              } catch (err) {
+                setMsg({ tone: "bad", text: (err as Error).message });
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        </label>
+        {msg && <p className={msg.tone === "ok" ? "text-ok" : "text-bad"}>{msg.text}</p>}
+        <p className="text-xs text-faint">KMZ files are zipped: unzip them or export as KML or GPX first. Only files you choose are read.</p>
+      </Card>
+      {layers.map((l) => (
+        <Card key={l.id} className="flex items-center justify-between gap-3 p-4">
+          <div className="min-w-0">
+            <div className="truncate font-semibold">{l.name}</div>
+            <div className="text-xs text-muted">
+              {[l.points && `${l.points} waypoints`, l.lines && `${l.lines} tracks`, l.areas && `${l.areas} areas`].filter(Boolean).join(" · ")} · imported{" "}
+              {new Date(l.importedAt).toLocaleDateString()}
+            </div>
+          </div>
+          <button type="button" onClick={() => removeLayer(l.id)} className="min-h-10 shrink-0 rounded-lg px-2 text-bad">
+            Remove
+          </button>
+        </Card>
+      ))}
+    </div>
   );
 }

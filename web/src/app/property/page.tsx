@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { useData } from "@/components/DataProvider";
 import { BASE_LABELS, type BaseLayer } from "@/components/MapView";
+import { OfflineSave } from "@/components/OfflineSave";
+import { padBBox } from "@/lib/offline";
+import { useImported } from "@/components/useImported";
 import { conditionsAt, forecastFor, useForecast } from "@/components/useForecast";
 import { useSaved } from "@/components/useSaved";
 import { useSettings } from "@/components/useSettings";
@@ -188,39 +191,53 @@ function PropertyMap({
   onSpot: (id: string) => void;
 }) {
   const { landcover } = useData();
+  const { geojson: imported } = useImported();
   const [base, setBase] = useState<BaseLayer>("topo");
   const [lcOn, setLcOn] = useState(false);
+  // A spot close-up frames about 300 m around it so the LiDAR relief and satellite show detail.
   const bbox: [number, number, number, number] = focusSpot
-    ? [focusSpot.point[0] - 0.006, focusSpot.point[1] - 0.004, focusSpot.point[0] + 0.006, focusSpot.point[1] + 0.004]
+    ? [focusSpot.point[0] - 0.002, focusSpot.point[1] - 0.0014, focusSpot.point[0] + 0.002, focusSpot.point[1] + 0.0014]
     : unit?.is_block
       ? unit.bbox
       : prop.bbox;
+  const saveBox = padBBox(unit?.is_block ? unit.bbox : prop.bbox, 300);
+  const saveName = unit?.is_block && unit.label ? `${prop.name} · ${unit.label}` : prop.name;
   return (
-    <div className="relative">
-      <MapView
-        className="h-72 w-full"
-        base={base}
-        fitBbox={bbox}
-        highlightPropertyId={prop.id}
-        highlightUnitId={unit?.is_block ? unit.id : null}
-        highlightSpotId={focusSpot?.id ?? null}
-        landcover={landcover}
-        showLandcover={lcOn}
-        onSelectUnit={(id) => id.startsWith(`${prop.id}~`) && onUnit(id)}
-        onSelectSpot={onSpot}
-      />
-      <div className="absolute left-3 top-3 flex overflow-hidden rounded-lg bg-surface/95 text-xs shadow ring-1 ring-line">
-        {(Object.keys(BASE_LABELS) as BaseLayer[]).map((b) => (
-          <button key={b} type="button" onClick={() => setBase(b)} className={`min-h-9 px-2.5 font-medium ${base === b ? "bg-blaze text-blaze-ink" : ""}`}>
-            {BASE_LABELS[b]}
-          </button>
-        ))}
-        {landcover && (
-          <button type="button" onClick={() => setLcOn((v) => !v)} className={`min-h-9 px-2.5 font-medium ${lcOn ? "bg-blaze text-blaze-ink" : ""}`} aria-pressed={lcOn}>
-            Cover
-          </button>
+    <div>
+      <div className="relative">
+        <MapView
+          className="h-72 w-full"
+          base={base}
+          fitBbox={bbox}
+          fitMaxZoom={focusSpot ? 16.5 : 14}
+          highlightPropertyId={prop.id}
+          highlightUnitId={unit?.is_block ? unit.id : null}
+          highlightSpotId={focusSpot?.id ?? null}
+          landcover={landcover}
+          showLandcover={lcOn}
+          imported={imported}
+          onSelectUnit={(id) => id.startsWith(`${prop.id}~`) && onUnit(id)}
+          onSelectSpot={onSpot}
+        />
+        <div className="absolute left-3 top-3 flex overflow-hidden rounded-lg bg-surface/95 text-xs shadow ring-1 ring-line">
+          {(Object.keys(BASE_LABELS) as BaseLayer[]).map((b) => (
+            <button key={b} type="button" onClick={() => setBase(b)} className={`min-h-9 px-2.5 font-medium ${base === b ? "bg-blaze text-blaze-ink" : ""}`}>
+              {BASE_LABELS[b]}
+            </button>
+          ))}
+          {landcover && (
+            <button type="button" onClick={() => setLcOn((v) => !v)} className={`min-h-9 px-2.5 font-medium ${lcOn ? "bg-blaze text-blaze-ink" : ""}`} aria-pressed={lcOn}>
+              Cover
+            </button>
+          )}
+        </div>
+        {focusSpot && (
+          <div className="absolute left-3 right-14 top-14 rounded-lg bg-surface/95 px-2.5 py-1.5 text-xs shadow ring-1 ring-line">
+            Close-up: switch between Satellite and LiDAR relief to check the spot.
+          </div>
         )}
       </div>
+      <OfflineSave name={saveName} bbox={saveBox} className="mx-4 mt-3" />
     </div>
   );
 }
