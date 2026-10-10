@@ -42,6 +42,8 @@ BENCH_SEARCH_M = 30.0
 SADDLE_MIN_M = 2.0  # rise along the ridge and fall across it, each way
 WATER_FLAT_PX = 300  # a perfectly level patch this big (m² at 1 m) is a water surface
 WATER_NEAR_M = 35.0
+WATER_NEAR_LEVEL = 0.004  # m per m: under a quarter of a degree
+WATER_NEAR_LEVEL_M2 = 1500.0
 NOT_CONFIRMED_PENALTY = 15
 
 
@@ -121,19 +123,22 @@ def _disk(radius_px: int) -> np.ndarray:
 
 
 def near_water(z: np.ndarray, res: float) -> bool:
-    """A perfectly level patch near the center: lidar models flatten water to one elevation."""
-    gy, gx = np.gradient(z)
-    level = (np.abs(gx) < 1e-4) & (np.abs(gy) < 1e-4) & np.isfinite(z)
-    lab, n = ndimage.label(level)
-    if n == 0:
-        return False
-    sizes = ndimage.sum(level, lab, index=np.arange(1, n + 1))
-    big = np.isin(lab, np.nonzero(sizes * res * res >= WATER_FLAT_PX)[0] + 1)
-    if not big.any():
-        return False
+    """A water surface near the center. Lidar models flatten water: either one exact elevation, or
+    (in some projects) a nearly dead-level surface with tiny noise. Dry ground, even a hayfield,
+    has more relief than that over this much area."""
+    gy, gx = np.gradient(z, res)
+    finite = np.isfinite(z)
     c = z.shape[0] // 2
-    dist = ndimage.distance_transform_edt(~big) * res
-    return bool(dist[c, c] <= WATER_NEAR_M)
+    for tol, min_m2 in ((1e-4, WATER_FLAT_PX), (WATER_NEAR_LEVEL, WATER_NEAR_LEVEL_M2)):
+        level = (np.abs(gx) < tol) & (np.abs(gy) < tol) & finite
+        lab, n = ndimage.label(level)
+        if n == 0:
+            continue
+        sizes = ndimage.sum(level, lab, index=np.arange(1, n + 1))
+        big = np.isin(lab, np.nonzero(sizes * res * res >= min_m2)[0] + 1)
+        if big.any() and ndimage.distance_transform_edt(~big)[c, c] * res <= WATER_NEAR_M:
+            return True
+    return False
 
 
 def check_bench(z: np.ndarray, res: float) -> Check:

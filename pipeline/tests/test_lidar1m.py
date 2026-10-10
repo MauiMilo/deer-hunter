@@ -68,6 +68,21 @@ def test_water_surface_is_detected():
     assert lidar1m.check_window("saddle", z, RES).verdict == "water"
 
 
+def test_slightly_noisy_water_surface_is_detected():
+    east, north = grid()
+    z = noise(np.tan(math.radians(10)) * north)
+    pond = north < -15
+    z[pond] = 400.0 + np.random.default_rng(1).normal(0, 0.001, pond.sum())
+    assert lidar1m.check_window("bench", z, RES).verdict == "water"
+
+
+def test_saddles_need_more_room_from_water():
+    assert spots.too_close_to_water("saddle", 70.0)
+    assert not spots.too_close_to_water("bench", 70.0)
+    assert spots.too_close_to_water("bench", 30.0)
+    assert not spots.too_close_to_water("saddle", None)
+
+
 def test_flat_but_bumpy_field_is_not_water():
     east, north = grid()
     assert lidar1m.check_window("bench", noise(np.zeros((N, N))), RES).verdict == "confirmed"

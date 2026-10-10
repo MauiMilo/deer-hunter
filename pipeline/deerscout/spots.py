@@ -44,7 +44,14 @@ def edge_distance_m(lc: LandCover | None, x: float, y: float, radius_m: float = 
 # A spot this close to open water is almost always a false saddle or bench: lidar elevation is
 # flattened over water, so a pond shore looks like a low flat spot between higher ground.
 WATER_DROP_M = 45.0
+WATER_DROP_SADDLE_M = 90.0  # saddles are the feature most often faked by a flat pond surface
 WATER_NOTE_M = 150.0
+
+
+def too_close_to_water(kind: str, water_m: float | None) -> bool:
+    if water_m is None:
+        return False
+    return water_m < (WATER_DROP_SADDLE_M if kind == "saddle" else WATER_DROP_M)
 
 
 def water_distance_m(lc: LandCover | None, x: float, y: float, radius_m: float = 300.0) -> float | None:

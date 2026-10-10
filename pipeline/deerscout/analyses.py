@@ -284,7 +284,7 @@ def make_spots(ctx: Context, uid: str, pid: str, geom, feats: list[terrain.Featu
     scored = []
     for f in feats:
         water_m = spots.water_distance_m(ctx.lc, f.x, f.y)
-        if water_m is not None and water_m < spots.WATER_DROP_M:
+        if spots.too_close_to_water(f.kind, water_m):
             continue
         pt = shapely.Point(f.x, f.y)
         road_m, road_info = _road_info(ctx, f.x, f.y)
