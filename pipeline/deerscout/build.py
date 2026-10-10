@@ -229,6 +229,7 @@ def build(
         session=session,
         units_ea=unit_gdf[["id", "property_id", "geometry"]].to_crs(EQUAL_AREA),
         analyze_ids=analyze_ids,
+        verified_ids={uid for uid, pid in zip(unit_gdf["id"], unit_gdf["property_id"]) if access_by_prop[pid]["status"] == "verified"},
         envelope=region.envelope,
         cache_dir=CACHE_DIR / region.slug,
         out_dir=out_dir,

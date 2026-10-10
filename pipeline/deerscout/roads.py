@@ -56,23 +56,44 @@ def fetch_dot_roads(session: Session, envelope) -> tuple[gpd.GeoDataFrame, Fetch
     if gdf.empty:
         raise SourceError(SOURCE_DOT, "no roads returned")
     gdf["source"] = "dot"
-    gdf["gated"] = [
-        dot_not_drivable(c, o)
-        for c, o in zip(gdf.get("LEGIS_CLASS", [None] * len(gdf)), gdf.get("OWNERSHIP_DESCR", [None] * len(gdf)))
-    ]
+    classes = gdf.get("LEGIS_CLASS", [None] * len(gdf))
+    owners = gdf.get("OWNERSHIP_DESCR", [None] * len(gdf))
+    gdf["gated"] = [dot_unmaintained(c) for c in classes]
+    gdf["private"] = [dot_private(c, o) for c, o in zip(classes, owners)]
     gdf["name"] = gdf.get("STREET")
-    return gdf[["name", "source", "gated", "geometry"]], res
+    return gdf[["name", "source", "gated", "private", "geometry"]], res
 
 
-def dot_not_drivable(legis_class: Any, ownership: Any) -> bool:
-    """True for DOT roads you can't count on driving or parking on.
+def dot_unmaintained(legis_class: Any) -> bool:
+    """Class VI roads are public but unmaintained, often just a woods trail: not counted as drivable."""
+    return str(legis_class or "").strip().upper() == "VI"
 
-    Class VI roads are public but unmaintained (often just a woods trail). Private roads
-    (class 0 owned privately) are camp and logging drives without public access.
-    """
-    cls = str(legis_class or "").strip().upper()
-    own = str(ownership or "").strip().upper()
-    return cls == "VI" or (cls == "0" and own == "PRIVATE")
+
+def dot_private(legis_class: Any, ownership: Any) -> bool:
+    """Privately owned roads (class 0). Some are camp drives with no public access; others are the
+    logging-road systems on conservation easements (the Connecticut Lakes Headwaters main roads are
+    privately owned but open to registered vehicles most of the year). See open_private_roads_on_public_land."""
+    return str(legis_class or "").strip().upper() == "0" and str(ownership or "").strip().upper() == "PRIVATE"
+
+
+def open_private_roads_on_public_land(roads_wgs: gpd.GeoDataFrame, public_ea, share: float = 0.5, pad_m: float = 30.0) -> tuple[int, int]:
+    """Private roads count as drivable only where most of their length runs through land with
+    confirmed public access (an easement's road system); elsewhere they're treated as closed.
+    Returns (kept open, closed)."""
+    if "private" not in roads_wgs or not roads_wgs["private"].fillna(False).astype(bool).any():
+        return 0, 0
+    zone = public_ea.buffer(pad_m) if public_ea is not None and not public_ea.is_empty else None
+    ea = roads_wgs.to_crs(EQUAL_AREA)
+    kept = closed = 0
+    for i in ea.index[ea["private"].fillna(False).astype(bool)]:
+        g = ea.at[i, "geometry"]
+        inside = zone is not None and g is not None and not g.is_empty and g.intersection(zone).length >= share * g.length
+        if inside:
+            kept += 1
+        else:
+            roads_wgs.at[i, "gated"] = True
+            closed += 1
+    return kept, closed
 
 
 def overpass_query(envelope) -> str:

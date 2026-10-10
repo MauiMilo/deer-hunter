@@ -151,12 +151,29 @@ def test_water_distance_from_land_cover():
     assert spots.water_distance_m(lc, 5 * 30 + 15, 1800 - 30 * 30 - 15) is None  # lake beyond the 300 m window
 
 
-@pytest.mark.parametrize(
-    "cls,own,gated",
-    [("VI", "TOWN", True), ("vi", None, True), ("0", "PRIVATE", True), ("0", "TOWN", False), ("V", "TOWN", False), ("VII", "FEDERAL", False), (None, None, False)],
-)
-def test_dot_roads_you_cant_drive(cls, own, gated):
-    assert roads.dot_not_drivable(cls, own) is gated
+@pytest.mark.parametrize("cls,unmaintained", [("VI", True), ("vi", True), ("V", False), ("0", False), (None, False)])
+def test_class_vi_is_not_drivable(cls, unmaintained):
+    assert roads.dot_unmaintained(cls) is unmaintained
+
+
+def test_private_roads_open_only_on_public_land():
+    import geopandas as gpd
+    from pyproj import Transformer
+    from shapely.geometry import LineString, box
+
+    to_wgs = Transformer.from_crs("EPSG:5070", "EPSG:4326", always_xy=True).transform
+    def line(x0, x1, y):
+        return LineString([to_wgs(x0, y), to_wgs(x1, y)])
+
+    easement = box(0, -1000, 2000, 1000)  # equal-area meters
+    df = gpd.GeoDataFrame(
+        {"name": ["Perry Stream Rd", "Camp Rd", "Town Rd"], "source": ["dot"] * 3, "gated": [False] * 3, "private": [True, True, False]},
+        geometry=[line(100, 1900, 0), line(5000, 5600, 0), line(5000, 5600, 100)],
+        crs="EPSG:4326",
+    )
+    assert roads.open_private_roads_on_public_land(df, easement) == (1, 1)
+    assert list(df["gated"]) == [False, True, False]
+    assert roads.dot_private("0", "PRIVATE") and not roads.dot_private("0", "TOWN")
 
 
 def test_osm_closed_way_overrides_a_dot_road():

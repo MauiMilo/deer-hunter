@@ -46,6 +46,7 @@ class Context:
     cache_dir: Path
     out_dir: Path
     manifest: dict[str, Any]
+    verified_ids: set[str] = field(default_factory=set)  # units on land with confirmed hunting access
     signals: dict[str, dict[str, Any]] = field(default_factory=dict)
     lc: landcover.LandCover | None = None
     net: roads.Network | None = None
@@ -169,6 +170,9 @@ def run_roads(ctx: Context) -> None:
         log.error("trails failed: %s", e)
     t0 = time.time()
     all_roads = gpd.GeoDataFrame(gpd.pd.concat(frames, ignore_index=True), geometry="geometry", crs=WGS84)
+    public = ctx.units_ea[ctx.units_ea["id"].isin(ctx.verified_ids)].geometry
+    kept, shut = roads.open_private_roads_on_public_land(all_roads, shapely.union_all(public.values) if len(public) else None)
+    log.info("private roads: %d kept open (inside land with confirmed access), %d treated as closed", kept, shut)
     closed = roads.close_where_osm_closed(all_roads)
     if closed:
         log.info("%d public-road segments marked closed where OpenStreetMap shows no vehicles", closed)
