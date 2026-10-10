@@ -81,7 +81,7 @@ def pressure_factor(s: dict[str, Any], cfg: dict[str, Any]) -> FactorResult:
         parts.append((1 - ramp(trail, c["trail_low"], c["trail_high"]), c["trail_weight"]))
     value = 100 * sum(v * w for v, w in parts) / sum(w for _, w in parts)
     ev = [
-        f"{_pct(near)} of the unit is within a quarter mile of a drivable road; {_pct(interior)} is more than half a mile from one.",
+        f"{_pct(near)} of the unit is within a quarter mile of a road (counting private camp roads); {_pct(interior)} is more than half a mile from one.",
     ]
     if trail is not None:
         ev.append(f"Mapped recreation trails: {trail:.1f} km per square km nearby.")

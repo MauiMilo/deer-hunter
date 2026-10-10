@@ -12,7 +12,7 @@ index, labeled as such.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import geopandas as gpd
@@ -192,6 +192,9 @@ class Network:
     drivable_names: list[str | None]
     gated: list[Any]
     trails: list[Any]
+    # Private roads closed to the public (camp drives): no parking or access for you, but their
+    # owners still drive them, so they count toward the estimated pressure index.
+    private_closed: list[Any] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self._dtree = shapely.STRtree(self.drivable) if self.drivable else None
@@ -200,7 +203,7 @@ class Network:
         self._grid: tuple[np.ndarray, Affine] | None = None
 
     def build_distance_grid(self, bounds, res: float = 30.0) -> None:
-        """Distance (m) from every cell to the nearest drivable road, on a grid over `bounds`.
+        """Distance (m) from every cell to the nearest road people drive (public, or private camp roads), on a grid over `bounds`.
 
         Drawing the roads once and measuring distance per cell is fast and light on memory,
         unlike buffering thousands of road lines as shapes.
@@ -213,7 +216,8 @@ class Network:
         w = int(np.ceil((maxx - minx) / res))
         h = int(np.ceil((maxy - miny) / res))
         tr = from_origin(minx, maxy, res, res)
-        lines = [g for g in self.drivable if g.intersects(shapely.box(minx, miny, maxx, maxy))]
+        area = shapely.box(minx, miny, maxx, maxy)
+        lines = [g for g in self.drivable + self.private_closed if g.intersects(area)]
         if not lines:
             dist = np.full((h, w), np.inf, dtype=np.float32)
         else:
@@ -242,20 +246,23 @@ class Network:
 
     @classmethod
     def build(cls, roads: gpd.GeoDataFrame | None, trails: gpd.GeoDataFrame | None) -> "Network":
-        drivable, names, gated, trail = [], [], [], []
+        drivable, names, gated, trail, private_closed = [], [], [], [], []
         if roads is not None and not roads.empty:
             r = roads.to_crs(EQUAL_AREA).explode(index_parts=False)
-            for geom, is_gated, name in zip(r.geometry.values, r["gated"].values, r["name"].values):
+            private = r["private"].fillna(False).astype(bool).values if "private" in r else [False] * len(r)
+            for geom, is_gated, name, is_private in zip(r.geometry.values, r["gated"].values, r["name"].values, private):
                 if geom is None or geom.is_empty:
                     continue
-                if is_gated:
+                if is_gated and is_private:
+                    private_closed.append(geom)
+                elif is_gated:
                     gated.append(geom)
                 else:
                     drivable.append(geom)
                     names.append(name if isinstance(name, str) and name.strip() else None)
         if trails is not None and not trails.empty:
             trail = [g for g in trails.to_crs(EQUAL_AREA).explode(index_parts=False).geometry.values if g is not None and not g.is_empty]
-        return cls(drivable, names, gated, trail)
+        return cls(drivable, names, gated, trail, private_closed)
 
 
 def _nearest(tree, geoms, g) -> tuple[float, int] | None:
