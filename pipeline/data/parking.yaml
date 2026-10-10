@@ -1,0 +1,11 @@
+# Parking areas you've confirmed on the ground. Spots within about a mile of one get walk-in
+# directions from it instead of from the nearest mapped road. Keep only places that are
+# legal to park; each needs a name, coordinates and who/when confirmed it.
+
+parking:
+  - name: "Old log yard, Comstock Hill"
+    lon: -71.43106
+    lat: 45.08571
+    note: "Gravel yard from the last cut, at the end of the woods road along Indian Stream. Take Comstock Hill Road west over the Indian Stream bridge, then the woods road west and south (about 0.4 mi past the bridge). Comstock Hill Road is a privately owned Headwaters road: don't drive around a closed gate."
+    confirmed_by: "Adam (knows it from the ground)"
+    checked_on: "2026-10-10"

@@ -47,6 +47,7 @@ class Context:
     out_dir: Path
     manifest: dict[str, Any]
     verified_ids: set[str] = field(default_factory=set)  # units on land with confirmed hunting access
+    parking: list[dict[str, Any]] = field(default_factory=list)  # confirmed parking areas (lon/lat)
     signals: dict[str, dict[str, Any]] = field(default_factory=dict)
     lc: landcover.LandCover | None = None
     net: roads.Network | None = None
@@ -282,6 +283,24 @@ def _road_info(ctx: Context, x: float, y: float) -> tuple[float | None, dict[str
     }
 
 
+PARKING_REACH_M = 1600.0  # a confirmed parking area this close is used for the walk-in
+PARKING_EXTRA_M = 400.0  # ...even if a mapped road is up to this much closer
+
+
+def _approach(ctx: Context, x: float, y: float, road_m: float | None, road_info: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Walk-in directions: from a confirmed parking area when one is close, else from the nearest road."""
+    best = None
+    for p in getattr(ctx, "parking", []) or []:
+        px, py = _TO_EA.transform(p["lon"], p["lat"])
+        d = math.hypot(px - x, py - y)
+        if d <= PARKING_REACH_M and (best is None or d < best[0]):
+            best = (d, p, px, py)
+    if best and (road_m is None or best[0] <= road_m + PARKING_EXTRA_M):
+        d, p, px, py = best
+        return {"kind": "parking", "road_name": p["name"], "distance_m": round(d), "road_bearing_deg": round(spots.bearing_deg(x, y, px, py))}
+    return road_info
+
+
 def make_spots(ctx: Context, uid: str, pid: str, geom, feats: list[terrain.Feature]) -> list[dict[str, Any]]:
     """Score a unit's terrain features and keep the best SPOT_CANDIDATES, spaced apart.
 
@@ -295,6 +314,7 @@ def make_spots(ctx: Context, uid: str, pid: str, geom, feats: list[terrain.Featu
             continue
         pt = shapely.Point(f.x, f.y)
         road_m, road_info = _road_info(ctx, f.x, f.y)
+        approach = _approach(ctx, f.x, f.y, road_m, road_info)
         trail_m = None
         if ctx.net is not None and ctx.net._ttree is not None:
             k = int(ctx.net._ttree.nearest(pt))
@@ -308,7 +328,7 @@ def make_spots(ctx: Context, uid: str, pid: str, geom, feats: list[terrain.Featu
             boundary_m=float(geom.boundary.distance(pt)),
             water_m=water_m,
         )
-        scored.append((score, f, conf, why, road_info))
+        scored.append((score, f, conf, why, approach))
     scored.sort(key=lambda t: -t[0])
     kept: list[tuple] = []
     for item in scored:
@@ -350,7 +370,8 @@ def apply_lidar_check(ctx: Context, sp: dict[str, Any], chk: lidar1m.Check | Non
         x, y = x + chk.dx_m, y + chk.dy_m
         lon2, lat2 = _TO_WGS.transform(x, y)
         sp["point"] = [round(lon2, 5), round(lat2, 5)]
-        _, info = _road_info(ctx, x, y)
+        road_m, info = _road_info(ctx, x, y)
+        info = _approach(ctx, x, y, road_m, info)
         if info:
             sp["approach"] = info
     if chk.travel_axis_deg is not None:

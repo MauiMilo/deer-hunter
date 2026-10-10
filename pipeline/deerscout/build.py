@@ -135,6 +135,20 @@ def load_abundance() -> dict[str, dict[str, Any]]:
     return out
 
 
+def load_parking() -> list[dict[str, Any]]:
+    """Parking areas confirmed on the ground (data/parking.yaml)."""
+    path = DATA_DIR / "parking.yaml"
+    if not path.exists():
+        return []
+    rows = (yaml.safe_load(path.read_text()) or {}).get("parking") or []
+    out = []
+    for r in rows:
+        if not (r.get("name") and r.get("checked_on") and isinstance(r.get("lon"), (int, float)) and isinstance(r.get("lat"), (int, float))):
+            raise ValueError(f"parking entry needs name, lon, lat and checked_on: {r}")
+        out.append({k: r.get(k) for k in ("name", "lon", "lat", "note", "confirmed_by", "checked_on")})
+    return out
+
+
 def build(
     region: Region,
     *,
@@ -225,6 +239,7 @@ def build(
 
     # 6. Habitat, access, terrain and wind analyses (each optional)
     out_dir.mkdir(parents=True, exist_ok=True)
+    parking = load_parking()
     ctx = analyses.Context(
         session=session,
         units_ea=unit_gdf[["id", "property_id", "geometry"]].to_crs(EQUAL_AREA),
@@ -234,6 +249,7 @@ def build(
         cache_dir=CACHE_DIR / region.slug,
         out_dir=out_dir,
         manifest=manifest,
+        parking=parking,
     )
     analyses.run_all(ctx, skip=skip)
     abundance = load_abundance()
@@ -407,6 +423,16 @@ def build(
     _write(out_dir / "spots.geojson", spot_fc)
     _write(out_dir / "catalog.json", _clean(catalog))
     _write(out_dir / "regulations.json", regs)
+    _write(
+        out_dir / "parking.geojson",
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "geometry": {"type": "Point", "coordinates": [p["lon"], p["lat"]]}, "properties": {k: v for k, v in p.items() if k not in ("lon", "lat")}}
+                for p in parking
+            ],
+        },
+    )
     _write(out_dir / "manifest.json", _clean(manifest))
     return manifest
 

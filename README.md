@@ -85,6 +85,12 @@ cd pipeline && pytest          # acreage, projections, polygon repair, scoring, 
 cd web && npm test             # seasons, legal hours, wind math, conditions, spots, ranking
 ```
 
+### Adding a parking spot you know
+
+Add it to `pipeline/data/parking.yaml` (name, coordinates, who confirmed it, date). Spots within about
+a mile get walk-in directions from it after the next data build. In the field, saving a waypoint as
+**Parking** does the same on your phone right away.
+
 ### Marking a property as verified
 
 When you confirm a property's rules (town office, posted sign, managing agency), add it to

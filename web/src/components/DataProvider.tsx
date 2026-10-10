@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Catalog, LandcoverMeta, Manifest, Property, Regulations, Spot, Unit, WindHistory } from "@/lib/types";
+import type { Catalog, LandcoverMeta, Manifest, Property, Regulations, Spot, Unit, WindHistory, ParkingArea } from "@/lib/types";
 
 interface DataState {
   loading: boolean;
@@ -11,6 +11,8 @@ interface DataState {
   manifest: Manifest | null;
   windHistory: WindHistory | null;
   landcover: LandcoverMeta | null;
+  /** Parking areas confirmed on the ground (data/parking.yaml). */
+  parking: ParkingArea[];
   propertyById: Map<string, Property>;
   unitById: Map<string, Unit>;
   spotById: Map<string, Spot>;
@@ -42,6 +44,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     manifest: null,
     windHistory: null,
     landcover: null,
+    parking: [],
   });
 
   useEffect(() => {
@@ -52,10 +55,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       getJson<Manifest>("/data/manifest.json"),
       optionalJson<WindHistory>("/data/wind_history.json"),
       optionalJson<LandcoverMeta>("/data/landcover.json"),
+      optionalJson<{ features: { geometry: { coordinates: [number, number] }; properties: Omit<ParkingArea, "point"> }[] }>("/data/parking.geojson"),
     ])
       .then(
-        ([catalog, regs, manifest, windHistory, landcover]) =>
-          alive && setState({ loading: false, error: null, catalog, regs, manifest, windHistory, landcover }),
+        ([catalog, regs, manifest, windHistory, landcover, parkingFc]) =>
+          alive &&
+          setState({
+            loading: false,
+            error: null,
+            catalog,
+            regs,
+            manifest,
+            windHistory,
+            landcover,
+            parking: (parkingFc?.features ?? []).map((f) => ({ ...f.properties, point: f.geometry.coordinates })),
+          }),
       )
       .catch((e: Error) =>
         alive &&
@@ -67,6 +81,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           manifest: null,
           windHistory: null,
           landcover: null,
+          parking: [],
         }),
       );
     return () => {

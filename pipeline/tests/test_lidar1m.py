@@ -196,3 +196,21 @@ def test_osm_closed_way_overrides_a_dot_road():
     )
     assert roads.close_where_osm_closed(df) == 1
     assert list(df["gated"]) == [True, False, True]
+
+
+def test_confirmed_parking_wins_for_nearby_spots():
+    from pyproj import Transformer
+
+    to_ea = Transformer.from_crs("EPSG:4326", "EPSG:5070", always_xy=True).transform
+
+    class Ctx:
+        net = None
+        parking = [{"name": "Old log yard", "lon": -71.43106, "lat": 45.08571}]
+
+    x, y = to_ea(-71.43380, 45.08663)  # Pin 1, 0.15 mi WNW of the yard
+    a = analyses._approach(Ctx(), x, y, 298.0, {"road_name": None, "distance_m": 298, "road_bearing_deg": 60})
+    assert a["kind"] == "parking" and a["road_name"] == "Old log yard"
+    assert 220 <= a["distance_m"] <= 260 and 100 <= a["road_bearing_deg"] <= 130  # yard is ESE of the pin
+    far = to_ea(-71.30, 45.20)
+    road = {"road_name": "X", "distance_m": 100, "road_bearing_deg": 0}
+    assert analyses._approach(Ctx(), *far, 100.0, road) is road

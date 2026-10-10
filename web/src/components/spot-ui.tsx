@@ -1,6 +1,8 @@
 "use client";
 
-import { evaluateSpot, FIT_TEXT, type SpotEval } from "@/lib/spots";
+import { useData } from "@/components/DataProvider";
+import { useFieldLog } from "@/components/useFieldLog";
+import { evaluateSpot, FIT_TEXT, withParking, type SpotEval } from "@/lib/spots";
 import type { Spot, WindRoseCell } from "@/lib/types";
 import { compass, type Fit } from "@/lib/wind";
 
@@ -24,7 +26,7 @@ export function goodWindText(spot: Spot): string {
 }
 
 export function SpotCard({
-  spot,
+  spot: rawSpot,
   windFromDeg,
   rank,
   selected,
@@ -36,6 +38,10 @@ export function SpotCard({
   selected?: boolean;
   onShow?: () => void;
 }) {
+  const { parking } = useData();
+  const { waypoints } = useFieldLog();
+  const mine = waypoints.filter((w) => w.kind === "Parking").map((w) => ({ name: w.name || "your parking spot", point: [w.lon, w.lat] as [number, number] }));
+  const spot = withParking(rawSpot, [...parking, ...mine]);
   const ev: SpotEval = evaluateSpot(spot, windFromDeg);
   const kind = spot.kind === "saddle" ? "Saddle" : "Bench";
   const a = spot.approach;
@@ -59,8 +65,16 @@ export function SpotCard({
       </div>
       {a && (
         <p className="mt-3 text-sm">
-          {a.road_name ? `From ${a.road_name}` : "From the nearest mapped road"}, walk about {(a.distance_m / 1609.34).toFixed(1)} mi heading{" "}
-          {compass(ev.approachBearing ?? 0)}. <span className="text-faint">Check that the road is open to trucks.</span>
+          {a.kind === "parking" ? (
+            <>
+              <span className="font-medium">Park at {a.road_name}</span>, then walk about {(a.distance_m / 1609.34).toFixed(2)} mi heading {compass(ev.approachBearing ?? 0)}.
+            </>
+          ) : (
+            <>
+              {a.road_name ? `From ${a.road_name}` : "From the nearest mapped road"}, walk about {(a.distance_m / 1609.34).toFixed(1)} mi heading{" "}
+              {compass(ev.approachBearing ?? 0)}. <span className="text-faint">Check that the road is open to trucks.</span>
+            </>
+          )}
           {ev.approachFit && ev.approachFit !== "marginal" && (
             <span className={ev.approachFit === "good" ? "text-ok" : "text-bad"}>
               {" "}

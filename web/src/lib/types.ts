@@ -64,7 +64,9 @@ export interface Spot {
   /** Likely direction deer travel through/along the feature, 0-180 degrees. */
   travel_axis_deg: number;
   good_winds_from: [number, number][];
-  approach: { road_name: string | null; distance_m: number; road_bearing_deg: number } | null;
+  /** Walk-in start: a confirmed parking area when one is close (kind "parking"), else the nearest mapped road.
+   * road_bearing_deg is the direction FROM the spot TO that start point. */
+  approach: { road_name: string | null; distance_m: number; road_bearing_deg: number; kind?: "road" | "parking" } | null;
   /** Result of re-checking the spot against 1 m lidar (missing in older data). */
   lidar?: { res_m: number; verdict: "confirmed" | "moved" | "not_confirmed" | "not_checked"; detail: string; source?: string };
 }
@@ -200,4 +202,12 @@ export interface LandcoverMeta {
   year: number | null;
   coordinates: [[number, number], [number, number], [number, number], [number, number]];
   legend: { code: number; label: string; rgb: [number, number, number] }[];
+}
+
+export interface ParkingArea {
+  name: string;
+  point: [number, number];
+  note?: string | null;
+  confirmed_by?: string | null;
+  checked_on?: string | null;
 }

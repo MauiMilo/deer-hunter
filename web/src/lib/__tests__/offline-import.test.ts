@@ -73,3 +73,22 @@ describe("importing map files", () => {
     expect(() => parseFile("empty.gpx", "<gpx></gpx>")).toThrow(/No waypoints/);
   });
 });
+
+import { withParking } from "../spots";
+import type { Spot } from "../types";
+
+describe("walk-in from a parking spot", () => {
+  const spot = {
+    id: "s", unit_id: "u", property_id: "p", kind: "bench", point: [-71.4338, 45.08663], elevation_ft: 1466, slope_deg: 2, score: 80,
+    confidence: "medium", reasons: [], travel_axis_deg: 45, good_winds_from: [], approach: { road_name: null, distance_m: 298, road_bearing_deg: 60 },
+  } as unknown as Spot;
+  it("uses a parking spot within a mile", () => {
+    const s = withParking(spot, [{ name: "Old log yard", point: [-71.43106, 45.08571] }]);
+    expect(s.approach?.kind).toBe("parking");
+    expect(s.approach?.distance_m).toBeGreaterThan(220);
+    expect(s.approach?.distance_m).toBeLessThan(260);
+  });
+  it("ignores parking that's far away", () => {
+    expect(withParking(spot, [{ name: "Far", point: [-71.3, 45.2] }])).toBe(spot);
+  });
+});

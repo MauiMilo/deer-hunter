@@ -34,6 +34,8 @@ Checked: 2026-10-08; hunting-permission and crossbow sources rechecked 2026-10-0
 
 All hunting-permission rules and their sources live in `pipeline/data/access_rules.yaml`. Your own
 checks go in `pipeline/data/verifications.yaml` (needs a source and a date to count as verified).
+Parking areas you've confirmed on the ground go in `pipeline/data/parking.yaml`; spots within about
+a mile get walk-in directions from them. On the phone, a waypoint saved as "Parking" does the same.
 
 ## Habitat, terrain and access
 

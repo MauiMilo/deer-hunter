@@ -216,6 +216,23 @@ export default function MapView({
           filter: ["==", ["get", "id"], ""],
           paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#ff6b1a", "circle-stroke-width": 3 },
         });
+        // Parking areas confirmed on the ground.
+        m.addSource("parking", { type: "geojson", data: "/data/parking.geojson" });
+        m.addLayer({
+          id: "parking-dot",
+          type: "circle",
+          source: "parking",
+          minzoom: 10,
+          paint: { "circle-radius": 9, "circle-color": "#1f5fd1", "circle-stroke-color": "#fff", "circle-stroke-width": 2 },
+        });
+        m.addLayer({
+          id: "parking-label",
+          type: "symbol",
+          source: "parking",
+          minzoom: 10,
+          layout: { "text-field": "P", "text-font": [LABEL_FONT], "text-size": 12, "text-allow-overlap": true },
+          paint: { "text-color": "#fff" },
+        });
         m.on("click", "spot-dot", (e) => {
           const id = e.features?.[0]?.properties?.id;
           if (id) handlers.current.onSelectSpot?.(String(id));

@@ -1,5 +1,6 @@
 // Scouting spots checked against a day's wind.
 
+import { bearingDeg, haversineMiles } from "./geo";
 import type { Spot } from "./types";
 import { approachFit, compass, type Fit } from "./wind";
 
@@ -58,3 +59,24 @@ export function bestSpot(spots: Spot[], windFromDeg: number | null): SpotEval | 
 }
 
 export const FIT_TEXT: Record<Fit, string> = { good: "Wind works", marginal: "Wind so-so", bad: "Wrong wind" };
+
+const PARKING_REACH_M = 1600;
+const PARKING_EXTRA_M = 400;
+
+/** Use your own parking spot (a "Parking" waypoint, or one from the data) for the walk-in when it's
+ * within about a mile and not much farther than the spot's current start point. */
+export function withParking(spot: Spot, parking: { name: string; point: [number, number] }[]): Spot {
+  let best: { name: string; point: [number, number]; m: number } | null = null;
+  for (const p of parking) {
+    const m = haversineMiles(spot.point, p.point) * 1609.34;
+    if (m <= PARKING_REACH_M && (!best || m < best.m)) best = { ...p, m };
+  }
+  if (!best) return spot;
+  const current = spot.approach;
+  if (current && current.kind === "parking" && current.distance_m <= best.m) return spot;
+  if (current && current.kind !== "parking" && best.m > current.distance_m + PARKING_EXTRA_M) return spot;
+  return {
+    ...spot,
+    approach: { kind: "parking", road_name: best.name, distance_m: Math.round(best.m), road_bearing_deg: Math.round(bearingDeg(spot.point, best.point)) },
+  };
+}
