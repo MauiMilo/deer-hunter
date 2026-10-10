@@ -51,6 +51,12 @@ sources:
     url: https://www.nhstateparks.org/NHStateParks/media/NHStateParks/PDFs/Parks/CT%20Lakes%20Headwaters/clhw_forest_rules_sign_18x24.pdf
     publisher: NH Division of Parks and Recreation
     retrieved: "2026-10-08"
+  clhw_road_plan:
+    title: "Connecticut Lakes Headwaters road management plan (draft, April 2024)"
+    url: https://www.nhstateparks.org/NHStateParks/media/NHStateParks/PDFs/Committees/CT%20Lakes%20Headwaters/Road-Mgmt_Final-Draft_040224.pdf
+    publisher: NH Division of Parks and Recreation (Connecticut Lakes Headwaters Citizens Committee)
+    source_date: "2024-04-02 (draft, not adopted)"
+    retrieved: "2026-10-10"
   wmnf_hunting:
     title: "White Mountain National Forest - Hunting & Shooting"
     url: https://www.fs.usda.gov/r09/whitemountain/recreation/opportunities/hunting-shooting
@@ -103,7 +109,8 @@ rules:
       - "No camping and no fires on the property."
       - "ATVs, trail bikes and snowmobiles only on trails designated by the Bureau of Trails."
       - "Land is privately owned under a state conservation easement; logging traffic and road conditions change. Respect gates and closures."
-    sources: [clhw_rules_sign, res_7301_10]
+      - "Roads: the state's draft road plan says the road system is open to registered, inspected road vehicles from about mid-May until about Dec 15, with some roads gated; most gates are open during moose season. Never drive around a closed gate."
+    sources: [clhw_rules_sign, res_7301_10, clhw_road_plan]
 
   - id: nhfg-connecticut-lakes-natural-area
     status: verified
