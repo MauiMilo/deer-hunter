@@ -108,3 +108,25 @@ ERROR terrain tile at (1912000.0, 2728000.0) skipped: elevation tile is mostly e
 INFO terrain tile 91: 7 units, 13 features (download 0s, analysis 0s, peak memory 870 MB)
 INFO finished USGS 3DEP elevation (peak memory 870 MB)
 INFO starting USGS 3DEP 1 m lidar (spot check) (peak memory so far 870 MB)
+INFO finished USGS 3DEP 1 m lidar (spot check) (peak memory 889 MB)
+INFO starting Open-Meteo historical weather (peak memory so far 889 MB)
+INFO finished Open-Meteo historical weather (peak memory 889 MB)
+INFO wrote properties.geojson (442.2 KB)
+INFO wrote blocks.geojson (392.9 KB)
+INFO wrote spots.geojson (229.5 KB)
+INFO wrote catalog.json (4058.9 KB)
+INFO wrote regulations.json (3.9 KB)
+INFO wrote manifest.json (3.6 KB)
+{
+  "tracts": 719,
+  "properties": 297,
+  "units": 1008,
+  "blocks": 733,
+  "spots": 1074,
+  "access_status": {
+    "unknown": 228,
+    "verified": 52,
+    "prohibited": 17
+  },
+  "total_acres": 670473
+}
