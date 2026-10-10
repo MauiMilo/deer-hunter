@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 from scipy import ndimage
 
-from .landcover import FOREST, OPENING, LandCover
+from .landcover import FOREST, OPENING, WATER, LandCover
 from .terrain import Feature
 
 BASE = {"saddle": 55.0, "bench": 50.0}
@@ -38,6 +38,31 @@ def edge_distance_m(lc: LandCover | None, x: float, y: float, radius_m: float = 
     if not edge.any():
         return None
     d = ndimage.distance_transform_edt(~edge) * 30.0
+    return float(d[r, r])
+
+
+# A spot this close to open water is almost always a false saddle or bench: lidar elevation is
+# flattened over water, so a pond shore looks like a low flat spot between higher ground.
+WATER_DROP_M = 45.0
+WATER_NOTE_M = 150.0
+
+
+def water_distance_m(lc: LandCover | None, x: float, y: float, radius_m: float = 300.0) -> float | None:
+    """Distance from a point to the nearest open water in the land cover (meters); None if none nearby."""
+    if lc is None:
+        return None
+    inv = ~lc.transform
+    col, row = inv @ (x, y)
+    r = int(radius_m / 30) + 2
+    r0, c0 = int(row) - r, int(col) - r
+    h, w = lc.data.shape
+    if r0 < 0 or c0 < 0 or r0 + 2 * r >= h or c0 + 2 * r >= w:
+        return None
+    win = lc.data[r0 : r0 + 2 * r + 1, c0 : c0 + 2 * r + 1]
+    water = np.isin(win, WATER)
+    if not water.any():
+        return None
+    d = ndimage.distance_transform_edt(~water) * 30.0
     return float(d[r, r])
 
 
@@ -71,6 +96,7 @@ def score_spot(
     road_m: float | None,
     trail_m: float | None,
     boundary_m: float,
+    water_m: float | None = None,
 ) -> tuple[float, str, list[str]]:
     score = BASE[f.kind]
     why = list(f.notes)
@@ -112,6 +138,8 @@ def score_spot(
         why.append(f"Only {boundary_m:.0f} m inside the mapped boundary; check lines and posting.")
     if f.slope_deg > 25:
         score -= 5
+    if water_m is not None and water_m <= WATER_NOTE_M:
+        why.append(f"A pond or lake is about {water_m:.0f} m away: expect wet ground, and watch for camps.")
 
     have = sum(v is not None for v in (edge_m, road_m))
     confidence = "medium" if have == 2 else "low"

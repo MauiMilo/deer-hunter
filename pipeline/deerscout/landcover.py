@@ -60,6 +60,7 @@ GROUPS = {
 }
 FOREST = [41, 42, 43, 90]
 OPENING = [52, 71, 81, 82, 95]
+WATER = [11]
 
 # The legend colors NLCD publishes, used for the app's land cover layer.
 COLORS = {

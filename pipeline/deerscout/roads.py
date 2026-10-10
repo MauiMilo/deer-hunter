@@ -56,9 +56,23 @@ def fetch_dot_roads(session: Session, envelope) -> tuple[gpd.GeoDataFrame, Fetch
     if gdf.empty:
         raise SourceError(SOURCE_DOT, "no roads returned")
     gdf["source"] = "dot"
-    gdf["gated"] = False
+    gdf["gated"] = [
+        dot_not_drivable(c, o)
+        for c, o in zip(gdf.get("LEGIS_CLASS", [None] * len(gdf)), gdf.get("OWNERSHIP_DESCR", [None] * len(gdf)))
+    ]
     gdf["name"] = gdf.get("STREET")
     return gdf[["name", "source", "gated", "geometry"]], res
+
+
+def dot_not_drivable(legis_class: Any, ownership: Any) -> bool:
+    """True for DOT roads you can't count on driving or parking on.
+
+    Class VI roads are public but unmaintained (often just a woods trail). Private roads
+    (class 0 owned privately) are camp and logging drives without public access.
+    """
+    cls = str(legis_class or "").strip().upper()
+    own = str(ownership or "").strip().upper()
+    return cls == "VI" or (cls == "0" and own == "PRIVATE")
 
 
 def overpass_query(envelope) -> str:

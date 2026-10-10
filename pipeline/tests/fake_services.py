@@ -15,7 +15,7 @@ from pyproj import Transformer
 from rasterio.transform import from_origin
 from shapely.geometry import LineString, mapping
 
-from deerscout import landcover, roads, terrain, windhistory
+from deerscout import landcover, lidar1m, roads, terrain, windhistory
 
 from .conftest import FakeResponse
 
@@ -116,4 +116,7 @@ class Services:
             return self.trails(url, params)
         if url == windhistory.ARCHIVE:
             return self.archive(url, params)
+        if url == lidar1m.TNM_PRODUCTS:
+            # No 1 m lidar in the fake world: every spot stays "not checked at 1 m".
+            return FakeResponse({"total": 0, "items": []})
         return None

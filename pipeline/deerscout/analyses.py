@@ -21,7 +21,7 @@ import shapely
 import shapely.ops
 from pyproj import Transformer
 
-from . import landcover, roads, spots, terrain, windhistory
+from . import landcover, lidar1m, roads, spots, terrain, windhistory
 from .config import EQUAL_AREA, WGS84
 from .http import Session, SourceError
 
@@ -33,6 +33,7 @@ DEM_RES_M = float(os.environ.get("DEERSCOUT_DEM_RES_M", "10"))  # matches the 1/
 DEM_SOURCE = os.environ.get("DEERSCOUT_DEM_SOURCE", "cog")  # "cog" (S3 files) or "imageserver"
 TILE_M = 8000.0
 SPOTS_PER_UNIT = 6
+SPOT_CANDIDATES = 10  # per unit, before the 1 m lidar check trims to SPOTS_PER_UNIT
 SPOT_MIN_SPACING_M = 150.0
 
 
@@ -255,27 +256,39 @@ def run_terrain(ctx: Context) -> None:
         units=done,
         resolution_m=DEM_RES_M,
         features=feature_counts,
-        spots=len(ctx.spots),
+        spot_candidates=len(ctx.spots),
     )
 
 
+def _road_info(ctx: Context, x: float, y: float) -> tuple[float | None, dict[str, Any] | None]:
+    if ctx.net is None or ctx.net._dtree is None:
+        return None, None
+    pt = shapely.Point(x, y)
+    k = int(ctx.net._dtree.nearest(pt))
+    road = ctx.net.drivable[k]
+    road_m = float(pt.distance(road))
+    near = shapely.ops.nearest_points(pt, road)[1]
+    return road_m, {
+        "road_name": ctx.net.drivable_names[k],
+        "distance_m": round(road_m),
+        "road_bearing_deg": round(spots.bearing_deg(x, y, near.x, near.y)),
+    }
+
+
 def make_spots(ctx: Context, uid: str, pid: str, geom, feats: list[terrain.Feature]) -> list[dict[str, Any]]:
+    """Score a unit's terrain features and keep the best SPOT_CANDIDATES, spaced apart.
+
+    Features right next to open water are dropped: lidar elevation is flattened over water,
+    so a pond shore can pass for a saddle or bench.
+    """
     scored = []
     for f in feats:
+        water_m = spots.water_distance_m(ctx.lc, f.x, f.y)
+        if water_m is not None and water_m < spots.WATER_DROP_M:
+            continue
         pt = shapely.Point(f.x, f.y)
-        road_m = trail_m = None
-        road_info = None
-        if ctx.net is not None and ctx.net._dtree is not None:
-            k = int(ctx.net._dtree.nearest(pt))
-            road = ctx.net.drivable[k]
-            road_m = float(pt.distance(road))
-            near = shapely.ops.nearest_points(pt, road)[1]
-            name = ctx.net.drivable_names[k]
-            road_info = {
-                "road_name": name,
-                "distance_m": round(road_m),
-                "road_bearing_deg": round(spots.bearing_deg(f.x, f.y, near.x, near.y)),
-            }
+        road_m, road_info = _road_info(ctx, f.x, f.y)
+        trail_m = None
         if ctx.net is not None and ctx.net._ttree is not None:
             k = int(ctx.net._ttree.nearest(pt))
             trail_m = float(pt.distance(ctx.net.trails[k]))
@@ -286,6 +299,7 @@ def make_spots(ctx: Context, uid: str, pid: str, geom, feats: list[terrain.Featu
             road_m=road_m,
             trail_m=trail_m,
             boundary_m=float(geom.boundary.distance(pt)),
+            water_m=water_m,
         )
         scored.append((score, f, conf, why, road_info))
     scored.sort(key=lambda t: -t[0])
@@ -294,13 +308,93 @@ def make_spots(ctx: Context, uid: str, pid: str, geom, feats: list[terrain.Featu
         f = item[1]
         if all(math.hypot(f.x - k[1].x, f.y - k[1].y) >= SPOT_MIN_SPACING_M for k in kept):
             kept.append(item)
-        if len(kept) >= SPOTS_PER_UNIT:
+        if len(kept) >= SPOT_CANDIDATES:
             break
     out = []
     for score, f, conf, why, road_info in kept:
         lon, lat = _TO_WGS.transform(f.x, f.y)
         out.append(spots.spot_record(f, uid, pid, (lon, lat), score, conf, why, road_info))
     return out
+
+
+def apply_lidar_check(ctx: Context, sp: dict[str, Any], chk: lidar1m.Check | None, tile: lidar1m.Tile | None) -> bool:
+    """Update a spot from its 1 m lidar check. Returns False if the spot should be dropped."""
+    if chk is None:
+        sp["lidar"] = {"res_m": 10, "verdict": "not_checked", "detail": "No 1 m lidar covers this spot; found with 10 m elevation only."}
+        return True
+    sp["lidar"] = {
+        "res_m": 1,
+        "verdict": chk.verdict,
+        "detail": chk.detail,
+        "source": f"USGS 3DEP 1 m DEM, {tile.project}" if tile else "USGS 3DEP 1 m DEM",
+    }
+    if chk.verdict == "water":
+        return False
+    sp["reasons"].append(chk.detail)
+    if chk.verdict == "not_confirmed":
+        sp["score"] = max(0, sp["score"] - lidar1m.NOT_CONFIRMED_PENALTY)
+        sp["confidence"] = "low"
+    if chk.verdict in ("confirmed", "moved") and sp.get("confidence") == "low":
+        sp["confidence"] = "medium"
+    if chk.verdict == "moved" and (chk.dx_m or chk.dy_m):
+        lon, lat = sp["point"]
+        x, y = _TO_EA.transform(lon, lat)
+        # The lidar window is in UTM; over 30 m its north differs from equal-area north by a degree or two.
+        x, y = x + chk.dx_m, y + chk.dy_m
+        lon2, lat2 = _TO_WGS.transform(x, y)
+        sp["point"] = [round(lon2, 5), round(lat2, 5)]
+        _, info = _road_info(ctx, x, y)
+        if info:
+            sp["approach"] = info
+    if chk.travel_axis_deg is not None:
+        sp["travel_axis_deg"] = round(chk.travel_axis_deg, 1)
+        sp["good_winds_from"] = spots.good_winds(chk.travel_axis_deg)
+    return True
+
+
+def run_lidar_check(ctx: Context) -> None:
+    if not ctx.spots:
+        ctx.record(lidar1m.SOURCE, "skipped", reason="no spots to check")
+        return
+    tiles = lidar1m.find_tiles(ctx.session, ctx.envelope)
+    results = lidar1m.check_spots(ctx.spots, tiles)
+    counts = {"confirmed": 0, "moved": 0, "not_confirmed": 0, "water": 0, "not_checked": 0}
+    kept = []
+    for sp in ctx.spots:
+        chk, tile = results.get(sp["id"], (None, None))
+        counts[chk.verdict if chk else "not_checked"] += 1
+        if apply_lidar_check(ctx, sp, chk, tile):
+            kept.append(sp)
+    ctx.spots = kept
+    ctx.record(
+        lidar1m.SOURCE,
+        "ok",
+        url=lidar1m.TNM_PRODUCTS,
+        tiles=len(tiles),
+        projects=sorted({t.project for t in tiles}),
+        checked=sum(v for k, v in counts.items() if k != "not_checked"),
+        **counts,
+    )
+
+
+def finalize_spots(ctx: Context) -> None:
+    """Keep the best SPOTS_PER_UNIT per unit, still spaced apart after any moves."""
+    by_unit: dict[str, list[dict[str, Any]]] = {}
+    for sp in ctx.spots:
+        sp.setdefault("lidar", {"res_m": 10, "verdict": "not_checked", "detail": "Not checked against 1 m lidar this run."})
+        by_unit.setdefault(sp["unit_id"], []).append(sp)
+    out = []
+    for group in by_unit.values():
+        group.sort(key=lambda s: -s["score"])
+        kept: list[dict[str, Any]] = []
+        for sp in group:
+            x, y = _TO_EA.transform(*sp["point"])
+            if all(math.hypot(x - kx, y - ky) >= SPOT_MIN_SPACING_M for kx, ky, _ in kept):
+                kept.append((x, y, sp))
+            if len(kept) >= SPOTS_PER_UNIT:
+                break
+        out.extend(sp for _, _, sp in kept)
+    ctx.spots = out
 
 
 # ------------------------------------------------------------------ wind history
@@ -328,5 +422,8 @@ def run_all(ctx: Context, skip: set[str] = frozenset()) -> None:
         guarded(ctx, "Roads and trails", run_roads, "Roads unavailable; access and pressure aren't scored this run.")
     if "terrain" not in skip:
         guarded(ctx, terrain.SOURCE, run_terrain, "Elevation data unavailable; terrain and spots aren't scored this run.")
+    if "lidar1m" not in skip and "terrain" not in skip:
+        guarded(ctx, lidar1m.SOURCE, run_lidar_check, "1 m lidar spot check unavailable; spots were found with 10 m elevation only.")
+    finalize_spots(ctx)
     if "wind" not in skip:
         guarded(ctx, windhistory.SOURCE, run_wind_history, "Historical wind unavailable this run.")
