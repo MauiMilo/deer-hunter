@@ -81,7 +81,8 @@ jobs:
             echo "No data changes."
           else
             git commit -m "Data refresh $(date -u +%Y-%m-%d)"
-            git pull --rebase origin main
+            # If an earlier run's data landed meanwhile, this run's files win: they come from newer code.
+            git pull --rebase -X theirs origin main
             git push origin HEAD:main
           fi
       - name: Save the run log to the run-logs branch
