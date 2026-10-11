@@ -90,6 +90,21 @@ sources:
     url: https://fws.gov/refuge/umbagog/visit-us/activities/hunting
     publisher: US Fish and Wildlife Service
     retrieved: "2026-10-08"
+  corps_hopkinton_everett:
+    title: "Hopkinton-Everett Lake (USACE Corps Lakes page: hunting listed among the project's recreation)"
+    url: https://corpslakes.erdc.dren.mil/visitors/projects.cfm?Id=E607700
+    publisher: US Army Corps of Engineers, New England District
+    retrieved: "2026-10-11"
+  hopkinton_everett_trails:
+    title: "Hopkinton-Everett Multi-use Trail System (says much of the 10,000-acre project is open to hunting and fishing)"
+    url: https://www.trailfinder.info/trails/trail/hopkinton-everett-multi-use-trail-system?lid=14
+    publisher: NH Bureau of Trails / trailfinder.info, quoting the Corps project
+    retrieved: "2026-10-11"
+  hopkinton_everett_rec_areas:
+    title: "Hopkinton-Everett Lake hunting notes (hunting not allowed at the two developed recreation areas)"
+    url: https://www.outdoorsy.com/guide/hopkinton-everett-lake
+    publisher: Outdoorsy (secondary source; confirm with the Corps office)
+    retrieved: "2026-10-11"
 
 # Restrictions that apply everywhere; shown on every property.
 general_restrictions:
@@ -178,6 +193,20 @@ rules:
     summary: "GRANIT records public access as not allowed. Treat as off-limits unless you have the landowner's permission."
     sources: [granit_standard]
 
+  - id: bear-brook-state-park
+    status: verified
+    when:
+      agency_code: [31000]
+      name_contains: "Bear Brook"
+    summary: "Bear Brook State Park is state park land open to hunting under Res 7301.10, with one special rule: the game refuge area east of Podunk Road is bow and arrow only."
+    restrictions:
+      - "East of Podunk Road (the game refuge): archery only, no firearms or muzzleloaders."
+      - "No firearm discharge within 300 ft of occupied developed areas such as the campground, beaches and the archery ranges."
+      - "Portable tree stands only, Aug 1 - Jan 31, no nails or damage to trees. No permanent stands."
+      - "Baiting only by Fish and Game permit."
+      - "Heavily used by hikers, bikers and riders; expect company, especially on weekends."
+    sources: [res_7301_10, nhfg_state_lands_faq]
+
   - id: dncr-fee-land
     status: verified
     when:
@@ -232,6 +261,20 @@ rules:
       agency_code: [32000]
     summary: "Owned or protected by NH Fish and Game. Fish and Game says most of its land is open, but rules vary by property. Confirm before hunting."
     sources: [nhfg_where_to_hunt]
+
+  - id: usace-hopkinton-everett
+    status: verified
+    when:
+      agency_code: [23000]
+      name_any: ["Hopkinton", "Everett"]
+    summary: "Hopkinton-Everett flood control project (Army Corps of Engineers). The Corps lists hunting among the project's recreation, and the trail-system listing says much of the 10,000 acres is open to hunting and fishing."
+    restrictions:
+      - "Hunting is not allowed at the developed recreation areas (Elm Brook Park and the Corps' other day-use areas)."
+      - "Some areas are closed to hunting; the Corps has a printable map. Call the Hopkinton office (603-746-3601) to confirm before you go."
+      - "Multi-use trails run through the project, so hunters tend to work away from the busy trails."
+      - "Corps stand and baiting rules weren't found; use portable stands and ask the office."
+    sources: [corps_hopkinton_everett, hopkinton_everett_trails, hopkinton_everett_rec_areas]
+    note: "The Corps' own hunting page couldn't be fetched, so this rests on the project listing plus secondary sources. Treat the closed-area list as unknown until you have the Corps map."
 
   - id: other-federal
     status: unknown

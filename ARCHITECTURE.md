@@ -90,5 +90,7 @@ Logic that matters is in plain TypeScript under `web/src/lib/` with unit tests: 
 
 ## Adding a region
 
-Add a `Region` in `config.py` (county GEOID, search rectangle) and the WMU seasons for it in
-`data/regulations/`. Access rules are statewide already.
+Add a `Region` in `config.py` (county GEOID, search rectangle). `data/regulations/nh-deer-2026.yaml`
+now covers every WMU (A through M). Access rules are mostly statewide; add property-specific rules
+(Bear Brook, the Hopkinton-Everett Corps land) to `data/access_rules.yaml`. The app reads one region's
+files at a time, so building a second region replaces the first in `web/public/data/`.
