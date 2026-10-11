@@ -1,10 +1,14 @@
-# NH deer seasons, Sept 2026 - Aug 2027, for the Wildlife Management Units that cover Coos County
-# (A, B, C1, C2, D1 and E). On the official WMU map, WMU A is drawn as A1 and A2; deer rules for
-# "A" cover both.
+# NH deer seasons, Sept 2026 - Aug 2027, for every Wildlife Management Unit (A through M). The
+# Coos County units (A, B, C1, C2, D1 and E) were entered first; D2E, D2W, F, G1, G2, H1, H2, I1,
+# I2, J1, J2, K, L and M were added on 2026-10-11 for the Concord-area (Merrimack County) region.
+# On the official WMU map, WMU A is drawn as A1 and A2; deer rules for "A" cover both.
 #
 # Source: 2026-27 NH Hunting Digest (eRegulations edition, last updated 2026-08-27).
 # The online season table had a garbled layout and was reconstructed; CONFIRM in the printed
 # digest or with NH Fish and Game before relying on a date. The app shows this warning.
+# The units added on 2026-10-11 were read from the eRegulations page by a summarizing tool and
+# match the shape of other published tables (L and M: any deer all muzzleloader season, firearms
+# any-deer Nov 11-22), but have not been checked against the printed digest either.
 
 season_year: "2026-27"
 verified_against_print: false
@@ -54,12 +58,12 @@ seasons:
     deer: any
     note: "WMU A archery closes one week earlier than the rest of the state."
   - method: archery
-    units: [B, C1, C2, D1, E]
+    units: [B, C1, C2, D1, D2E, D2W, E, F, G1, G2, H1, H2, I1, I2, J1, J2, K, L, M]
     start: "2026-09-15"
     end: "2026-12-15"
     deer: any
   - method: youth
-    units: [A, B, C1, C2, D1, E]
+    units: [A, B, C1, C2, D1, D2E, D2W, E, F, G1, G2, H1, H2, I1, I2, J1, J2, K, L, M]
     start: "2026-10-24"
     end: "2026-10-25"
     deer: any
@@ -69,16 +73,75 @@ seasons:
     start: "2026-10-31"
     end: "2026-11-10"
     deer: antlered
+  # Units where "any deer" runs for the first part of muzzleloader season, then antlered only
+  # (any-deer end date, by unit): E and D2E Oct 31; F, G2, I2 Nov 1; I1 Nov 2; H1, H2, J1, J2, K
+  # Nov 3; D2W Nov 4; G1 Nov 5.
   - method: muzzleloader
-    units: [E]
+    units: [D2E, E]
     start: "2026-10-31"
     end: "2026-10-31"
     deer: any
   - method: muzzleloader
-    units: [E]
+    units: [D2E, E]
     start: "2026-11-01"
     end: "2026-11-10"
     deer: antlered
+  - method: muzzleloader
+    units: [F, G2, I2]
+    start: "2026-10-31"
+    end: "2026-11-01"
+    deer: any
+  - method: muzzleloader
+    units: [F, G2, I2]
+    start: "2026-11-02"
+    end: "2026-11-10"
+    deer: antlered
+  - method: muzzleloader
+    units: [I1]
+    start: "2026-10-31"
+    end: "2026-11-02"
+    deer: any
+  - method: muzzleloader
+    units: [I1]
+    start: "2026-11-03"
+    end: "2026-11-10"
+    deer: antlered
+  - method: muzzleloader
+    units: [H1, H2, J1, J2, K]
+    start: "2026-10-31"
+    end: "2026-11-03"
+    deer: any
+  - method: muzzleloader
+    units: [H1, H2, J1, J2, K]
+    start: "2026-11-04"
+    end: "2026-11-10"
+    deer: antlered
+  - method: muzzleloader
+    units: [D2W]
+    start: "2026-10-31"
+    end: "2026-11-04"
+    deer: any
+  - method: muzzleloader
+    units: [D2W]
+    start: "2026-11-05"
+    end: "2026-11-10"
+    deer: antlered
+  - method: muzzleloader
+    units: [G1]
+    start: "2026-10-31"
+    end: "2026-11-05"
+    deer: any
+  - method: muzzleloader
+    units: [G1]
+    start: "2026-11-06"
+    end: "2026-11-10"
+    deer: antlered
+  - method: muzzleloader
+    units: [L, M]
+    start: "2026-10-31"
+    end: "2026-11-10"
+    deer: any
+    note: "Units L and M allow any deer for the whole muzzleloader season."
   - method: firearm
     units: [A]
     start: "2026-11-11"
@@ -99,23 +162,77 @@ seasons:
     start: "2026-11-12"
     end: "2026-12-06"
     deer: antlered
+  # Firearms: "any deer" opens Nov 11 everywhere and its last day depends on the unit
+  # (E, D2E, F, G2, I2 Nov 12; I1 Nov 13; J1, K Nov 14; H1, H2, J2 Nov 15; D2W, G1 Nov 16;
+  # L, M Nov 22). Antlered only follows through Dec 6.
   - method: firearm
-    units: [E]
+    units: [D2E, E, F, G2, I2]
     start: "2026-11-11"
     end: "2026-11-12"
     deer: any
   - method: firearm
-    units: [E]
+    units: [D2E, E, F, G2, I2]
     start: "2026-11-13"
     end: "2026-12-06"
     deer: antlered
+  - method: firearm
+    units: [I1]
+    start: "2026-11-11"
+    end: "2026-11-13"
+    deer: any
+  - method: firearm
+    units: [I1]
+    start: "2026-11-14"
+    end: "2026-12-06"
+    deer: antlered
+  - method: firearm
+    units: [J1, K]
+    start: "2026-11-11"
+    end: "2026-11-14"
+    deer: any
+  - method: firearm
+    units: [J1, K]
+    start: "2026-11-15"
+    end: "2026-12-06"
+    deer: antlered
+  - method: firearm
+    units: [H1, H2, J2]
+    start: "2026-11-11"
+    end: "2026-11-15"
+    deer: any
+  - method: firearm
+    units: [H1, H2, J2]
+    start: "2026-11-16"
+    end: "2026-12-06"
+    deer: antlered
+  - method: firearm
+    units: [D2W, G1]
+    start: "2026-11-11"
+    end: "2026-11-16"
+    deer: any
+  - method: firearm
+    units: [D2W, G1]
+    start: "2026-11-17"
+    end: "2026-12-06"
+    deer: antlered
+  - method: firearm
+    units: [L, M]
+    start: "2026-11-11"
+    end: "2026-11-22"
+    deer: any
+  - method: firearm
+    units: [L, M]
+    start: "2026-11-23"
+    end: "2026-12-06"
+    deer: antlered
+    note: "Units L and M also have special antlerless-only permits (3,500 in L, 4,000 in M), usable with any other deer tag."
 
 definitions:
   antlered: "A deer with at least one antler 3 inches or longer."
   any: "Any deer, regardless of sex or age."
 
 method_notes:
-  crossbow: "In the Coos units (A, B, C1, C2, D1, E), most archers may NOT use a crossbow in regular archery season; that's only allowed in D2W, G1, G2, H1, H2, I1, I2, J1, J2, K, L and M. Exceptions that apply everywhere: archery license holders 68 or older; Disabled Crossbow Permit holders (any bow season, crossbow only); youth hunters on Youth Deer Weekend; firearms license holders during firearms season (firearms tag); muzzleloader license holders during muzzleloader season (firearms tag)."
+  crossbow: "Most archers may use a crossbow in regular archery season only in WMUs D2W, G1, G2, H1, H2, I1, I2, J1, J2, K, L and M. In the other units (A, B, C1, C2, D1, D2E, E and F) they may NOT. Exceptions that apply everywhere: archery license holders 68 or older; Disabled Crossbow Permit holders (any bow season, crossbow only); youth hunters on Youth Deer Weekend; firearms license holders during firearms season (firearms tag); muzzleloader license holders during muzzleloader season (firearms tag)."
   bag: "Each regular, archery or combination license covers one deer. A Special Archery Deer Permit adds one antlered deer."
   registration: "Register within 24 hours. Online registration is unavailable the first 2 days of muzzleloader season and first 3 days of firearms season."
   baiting: "Deer baiting is allowed Oct 21 - Nov 18 in WMUs A through L, with further restrictions, and is banned on some lands (refuges, many state lands without a permit)."

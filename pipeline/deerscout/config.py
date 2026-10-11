@@ -43,7 +43,19 @@ COOS = Region(
     focus_towns=("Pittsburg", "Clarksville", "Stewartstown"),
 )
 
-REGIONS = {COOS.slug: COOS}
+# Concord area. Merrimack County is one Census county, so land across the line (for example the
+# Weare and Francestown side of the Hopkinton-Everett reservoir, in Hillsborough County) is clipped
+# off until multi-county regions exist. The envelope is the whole county; the town and WMU layers
+# are queried with it too.
+MERRIMACK = Region(
+    slug="merrimack",
+    name="Merrimack County, NH (Concord area)",
+    county_geoid="33013",
+    envelope=(-72.12, 42.98, -71.20, 43.78),
+    focus_towns=("Concord", "Hopkinton", "Dunbarton", "Allenstown", "Pembroke", "Bow", "Hooksett"),
+)
+
+REGIONS = {COOS.slug: COOS, MERRIMACK.slug: MERRIMACK}
 
 # Service endpoints (see DATA_SOURCES.md for verification notes)
 CONSERVATION_LAYER = (

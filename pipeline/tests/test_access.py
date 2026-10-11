@@ -177,3 +177,26 @@ def test_weeks_state_park_is_not_auto_verified(rules):
     r = rules.evaluate(prop(name="Weeks State Park", agency_code=31000, protection_type_code="FO"))
     assert r.status == "unknown"
     assert r.rule_id == "weeks-state-park"
+
+
+def test_bear_brook_is_verified_with_the_bow_only_refuge_rule(rules):
+    r = rules.evaluate(prop(name="Bear Brook State Park", agency_code=31000, protection_type_code="FO"))
+    assert r.status == "verified"
+    assert r.rule_id == "bear-brook-state-park"
+    assert any("bow" in x.lower() or "archery only" in x.lower() for x in r.restrictions)
+    assert any("podunk" in x.lower() for x in r.restrictions)
+
+
+def test_hopkinton_everett_corps_land_is_verified_with_limits(rules):
+    r = rules.evaluate(prop(name="Hopkinton-Everett Lake", agency_code=23000, protection_type_code="FO"))
+    assert r.status == "verified"
+    assert r.rule_id == "usace-hopkinton-everett"
+    assert any("recreation areas" in x.lower() for x in r.restrictions)
+    # Other Corps land with no source of its own stays a research candidate.
+    other = rules.evaluate(prop(name="Some Other Corps Project", agency_code=23000, protection_type_code="FO"))
+    assert other.status == "unknown"
+
+
+def test_corps_land_with_no_public_access_is_still_prohibited(rules):
+    r = rules.evaluate(prop(name="Hopkinton-Everett Dam Site", agency_code=23000, public_access_code=3))
+    assert r.status == "prohibited"

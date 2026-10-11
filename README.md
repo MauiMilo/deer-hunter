@@ -46,7 +46,9 @@ check the NH Hunting Digest, posted signs and property rules.
 - Season dates match the online digest and the season formula in the rules, but haven't been
   checked against the printed digest.
 - Tuning scores from your own logged sits (needs a season of logs first).
-- Other counties.
+- Other counties. Merrimack County (Concord area) is defined but has not been built: the app shows one
+  region's data at a time, so building it replaces the Coos files until Coos is rebuilt. Land across
+  the county line (for example Weare, in Hillsborough County) is clipped off.
 
 See `RESEARCH.md` for the evidence and its limits, `DATA_SOURCES.md` for every source,
 `ARCHITECTURE.md` for how it fits together.
@@ -74,6 +76,7 @@ cd pipeline
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 python -m deerscout.build --region coos            # full run, ~10-30 min
+python -m deerscout.build --region merrimack       # Concord area (Merrimack County)
 python -m deerscout.build --skip terrain,wind      # quicker partial run
 ```
 
