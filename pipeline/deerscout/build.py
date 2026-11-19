@@ -178,6 +178,12 @@ def load_parking() -> list[dict[str, Any]]:
     return out
 
 
+def parking_in(region: Region, parking: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Only the parking areas inside the region's search rectangle (parking.yaml is statewide)."""
+    w, s, e, n = region.envelope
+    return [p for p in parking if w <= p["lon"] <= e and s <= p["lat"] <= n]
+
+
 def abundance_held(region: Region, today: date) -> bool:
     """True while a region's scores are kept free of the deer-abundance factor (see Region.abundance_from)."""
     return bool(region.abundance_from) and today < date.fromisoformat(region.abundance_from)
@@ -291,7 +297,7 @@ def build(
 
     # 6. Habitat, access, terrain and wind analyses (each optional)
     out_dir.mkdir(parents=True, exist_ok=True)
-    parking = load_parking()
+    parking = parking_in(region, load_parking())
     ctx = analyses.Context(
         session=session,
         units_ea=unit_gdf[["id", "property_id", "geometry"]].to_crs(EQUAL_AREA),

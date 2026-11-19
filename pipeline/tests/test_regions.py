@@ -69,3 +69,20 @@ def test_towns_within_keeps_only_towns_inside_the_radius():
     assert list(gdf["town"]) == ["Concord", "Weare", "Laconia"]  # nearest first; Keene is too far
     assert "COUNTY IN ('001','011','013','015','017','019')" in seen["where"]
     assert json.loads(gdf.to_json())["features"][0]["properties"]["miles"] < 1
+
+
+def test_each_region_keeps_only_its_own_parking():
+    from deerscout import build
+
+    comstock = {"name": "Old log yard, Comstock Hill", "lon": -71.33, "lat": 45.12}  # Pittsburg
+    bow = {"name": "Somewhere in Bow", "lon": -71.53, "lat": 43.13}
+    assert build.parking_in(COOS, [comstock, bow]) == [comstock]
+    assert build.parking_in(CONCORD, [comstock, bow]) == [bow]
+
+
+def test_real_parking_file_still_gives_coos_its_log_yard():
+    from deerscout import build
+
+    names = [p["name"] for p in build.parking_in(COOS, build.load_parking())]
+    assert "Old log yard, Comstock Hill" in names
+    assert build.parking_in(CONCORD, build.load_parking()) == []
