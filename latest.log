@@ -3,3 +3,4 @@ INFO tracts in region: 5733
 INFO starting USGS NLCD land cover (peak memory so far 387 MB)
 INFO finished USGS NLCD land cover (peak memory 562 MB)
 INFO starting Roads and trails (peak memory so far 562 MB)
+INFO DOT roads: 73098 segments in 64s
