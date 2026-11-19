@@ -4,3 +4,6 @@ INFO starting USGS NLCD land cover (peak memory so far 387 MB)
 INFO finished USGS NLCD land cover (peak memory 557 MB)
 INFO starting Roads and trails (peak memory so far 557 MB)
 INFO DOT roads: 73098 segments in 44s
+INFO OpenStreetMap: 49064 ways in 43s
+INFO trails: 7344 lines in 7s
+INFO private roads: 99 kept open (inside land with confirmed access), 15682 treated as closed
