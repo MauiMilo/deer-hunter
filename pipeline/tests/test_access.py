@@ -200,3 +200,10 @@ def test_hopkinton_everett_corps_land_is_verified_with_limits(rules):
 def test_corps_land_with_no_public_access_is_still_prohibited(rules):
     r = rules.evaluate(prop(name="Hopkinton-Everett Dam Site", agency_code=23000, public_access_code=3))
     assert r.status == "prohibited"
+
+
+@pytest.mark.parametrize("name", ["Daniel Webster Birthplace Historic Site", "Frost Farm Historical Site", "Pierce Homestead Hist. Site"])
+def test_state_historic_sites_are_closed_however_granit_spells_them(rules, name):
+    r = rules.evaluate(prop(name=name, agency_code=31000, protection_type_code="FO"))
+    assert r.status == "prohibited", name
+    assert r.rule_id == "dncr-state-historic-sites"

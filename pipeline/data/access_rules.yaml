@@ -167,7 +167,8 @@ rules:
     status: prohibited
     when:
       agency_code: [31000]
-      name_contains: "Historic Site"
+      # GRANIT spells these several ways ("Frost Farm Historical Site", "Pierce Homestead Hist. Site").
+      name_any: ["Historic Site", "Historical Site", "Hist. Site"]
     summary: "Fish and Game's State Lands FAQ says hunting is not allowed at any DNCR state historic site."
     sources: [nhfg_state_lands_faq]
 
