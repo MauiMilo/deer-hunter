@@ -7,3 +7,21 @@ INFO DOT roads: 73098 segments in 44s
 INFO OpenStreetMap: 49064 ways in 43s
 INFO trails: 7344 lines in 7s
 INFO private roads: 99 kept open (inside land with confirmed access), 15682 treated as closed
+INFO 1022 public-road segments marked closed where OpenStreetMap shows no vehicles
+INFO road network indexed and distance grid built in 448s (peak memory 1873 MB)
+INFO road signals for 3591 units in 455s
+INFO finished Roads and trails (peak memory 1873 MB)
+INFO starting USGS 3DEP elevation (peak memory so far 1873 MB)
+INFO terrain tile 1: 47 units, 0 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 2: 12 units, 12 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 3: 55 units, 7 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 4: 28 units, 0 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 5: 20 units, 0 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 6: 2 units, 0 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 7: 1 units, 1 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 8: 4 units, 0 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 9: 27 units, 6 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 10: 72 units, 0 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 11: 32 units, 11 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 12: 35 units, 14 features (download 0s, analysis 0s, peak memory 1873 MB)
+INFO terrain tile 13: 97 units, 2 features (download 0s, analysis 0s, peak memory 1873 MB)
