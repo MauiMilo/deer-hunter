@@ -1,0 +1,5 @@
+INFO region: 82 towns within 30.0 miles
+INFO tracts in region: 5733
+INFO starting USGS NLCD land cover (peak memory so far 389 MB)
+INFO finished USGS NLCD land cover (peak memory 563 MB)
+INFO starting Roads and trails (peak memory so far 563 MB)
