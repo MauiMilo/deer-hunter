@@ -71,6 +71,11 @@ def make_world():
     return county, west, east, feats
 
 
+def _intpt(geom):
+    c = geom.centroid
+    return {"INTPTLAT": f"+{c.y:.7f}", "INTPTLON": f"{c.x:.7f}"}
+
+
 def clhw_center_ea(world):
     from pyproj import Transformer
     from shapely.geometry import shape
@@ -110,8 +115,8 @@ def handler_for(world, fail_towns=False, fail_wmu=False, phase2=True):
             return FakeResponse(
                 {
                     "features": [
-                        feature(west, GEOID="1", NAME="Pittsburg town", BASENAME="Pittsburg"),
-                        feature(east, GEOID="2", NAME="Colebrook town", BASENAME="Colebrook"),
+                        feature(west, GEOID="1", NAME="Pittsburg town", BASENAME="Pittsburg", **_intpt(west)),
+                        feature(east, GEOID="2", NAME="Colebrook town", BASENAME="Colebrook", **_intpt(east)),
                     ]
                 }
             )
@@ -137,9 +142,9 @@ def run(tmp_path, monkeypatch):
     monkeypatch.setattr("deerscout.analyses.DEM_SOURCE", "imageserver")
     monkeypatch.setattr("deerscout.analyses.DEM_RES_M", 6.0)
 
-    def _run(**kw):
-        out = tmp_path / "out"
-        manifest = build_mod.build(COOS, session=FakeSession(handler_for(make_world(), **kw)), out_dir=out)
+    def _run(region=COOS, default_out=False, **kw):
+        out = build_mod.OUTPUT_DIR / region.slug if default_out else tmp_path / "out"
+        manifest = build_mod.build(region, session=FakeSession(handler_for(make_world(), **kw)), out_dir=None if default_out else out)
         load = lambda n: json.loads((out / n).read_text())  # noqa: E731
         return manifest, load
 
@@ -263,3 +268,36 @@ def test_wmu_layer_failure_falls_back_to_towns(run):
     catalog = load("catalog.json")
     border = next(p for p in catalog["properties"] if p["name"] == "Border Lot")
     assert set(border["wmu_units"]) == {"A", "B"}  # Colebrook is split by town table
+
+
+def test_radius_region_keeps_whole_towns_near_the_center(run):
+    """A towns-within-a-radius region (like the Concord area) clips to the chosen towns, across counties."""
+    from dataclasses import replace
+
+    west = make_world()[1]
+    c = west.centroid
+    # The test towns' centers are about 6 miles apart: a 3-mile radius keeps only the west town.
+    region = replace(COOS, slug="radius-test", counties=("33007", "33009"), center=(c.x, c.y), radius_miles=3.0)
+    manifest, load = run(region=region)
+    names = {p["name"] for p in load("catalog.json")["properties"]}
+    assert names == {"Test State Forest", "Connecticut Lakes Headwaters"}  # the east-town lots are outside
+    assert manifest["region"]["towns"] == [{"town": "Pittsburg", "miles": 0.0}]
+    assert manifest["region"]["radius_miles"] == 3.0
+    assert not any(s["name"] == "Census TIGERweb counties" for s in manifest["sources"])  # no county outline needed
+
+
+def test_radius_region_with_no_towns_stops(run):
+    from dataclasses import replace
+
+    from deerscout.http import SourceError
+
+    region = replace(COOS, slug="radius-test", center=(-71.0, 43.0), radius_miles=1.0)  # far from the test towns
+    with pytest.raises(SourceError):
+        run(region=region)
+
+
+def test_default_output_is_the_region_folder(run, tmp_path, monkeypatch):
+    monkeypatch.setattr(build_mod, "OUTPUT_DIR", tmp_path / "data")
+    run(default_out=True)
+    assert (tmp_path / "data" / "coos" / "catalog.json").exists()
+    assert not (tmp_path / "data" / "catalog.json").exists()  # never the shared top-level folder

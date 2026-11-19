@@ -2,13 +2,19 @@ name: Refresh data
 
 # Downloads real data from GRANIT, the Census Bureau and USGS, rebuilds the app's data files,
 # and commits them. Runs on GitHub's servers because they have normal internet access.
+#
+# Each region is built in its own job and only ever replaces its own folder
+# (web/public/data/<region>/), so building one region can't touch another. The jobs run one at a
+# time (max-parallel: 1), each with its own 150-minute limit, and one region failing doesn't stop
+# the others. Data is committed to the branch the run was started on: main for the weekly and
+# push runs, or whatever branch you pick under "Run workflow".
 
 on:
   workflow_dispatch:
     inputs:
       region:
-        description: Region to build
-        default: coos
+        description: "Region to build: all, or one region's short name (coos, concord)"
+        default: all
   schedule:
     - cron: "17 9 * * 1" # Mondays 09:17 UTC (5:17 AM in NH)
   push:
@@ -25,9 +31,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  pick-regions:
+    runs-on: ubuntu-latest
+    outputs:
+      regions: ${{ steps.pick.outputs.regions }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: pick
+        env:
+          WANTED: ${{ github.event.inputs.region || 'all' }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os, sys
+          known = [r["slug"] for r in json.load(open("web/public/data/regions.json"))["regions"]]
+          wanted = os.environ["WANTED"].strip().lower()
+          picked = known if wanted in ("", "all") else [w.strip() for w in wanted.split(",")]
+          bad = [p for p in picked if p not in known]
+          if bad:
+              sys.exit(f"unknown region(s) {bad}; known: {known}")
+          print("regions=" + json.dumps(picked))
+          EOF
+
   build-data:
+    needs: pick-regions
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        region: ${{ fromJSON(needs.pick-regions.outputs.regions) }}
+    env:
+      REGION: ${{ matrix.region }}
+      BRANCH: ${{ github.ref_name }}
     defaults:
       run:
         working-directory: pipeline
@@ -43,9 +79,9 @@ jobs:
       - name: Reuse downloaded elevation tiles
         uses: actions/cache@v4
         with:
-          path: pipeline/.cache/*/dem
-          key: dem-${{ github.run_id }}
-          restore-keys: dem-
+          path: pipeline/.cache/${{ matrix.region }}/dem
+          key: dem-${{ matrix.region }}-${{ github.run_id }}
+          restore-keys: dem-${{ matrix.region }}-
       - name: Build data
         shell: bash
         run: |
@@ -57,33 +93,46 @@ jobs:
           (git fetch -q origin run-logs && git worktree add -q /tmp/logs origin/run-logs) || (git worktree add -q --detach /tmp/logs && cd /tmp/logs && git checkout -q --orphan run-logs-new && git rm -rfq . || true)
           (
             while sleep 120; do
-              cp run.log /tmp/logs/latest.log 2>/dev/null || continue
+              cp run.log "/tmp/logs/$REGION.log" 2>/dev/null || continue
+              cp run.log /tmp/logs/latest.log
               free -m > /tmp/logs/memory.txt 2>/dev/null || true
-              (cd /tmp/logs && git add latest.log memory.txt && git commit -qm "Checkpoint ${{ github.run_id }}" && git push -qf origin HEAD:run-logs) || true
+              (cd /tmp/logs && git add latest.log "$REGION.log" memory.txt && git commit -qm "Checkpoint ${{ github.run_id }} ($REGION)" && git push -qf origin HEAD:run-logs) || true
             done
           ) &
-          python -m deerscout.build --region "${{ github.event.inputs.region || 'coos' }}" 2>&1 | tee run.log
+          python -m deerscout.build --region "$REGION" 2>&1 | tee run.log
       - name: Keep raw downloads for debugging
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: raw-downloads
+          name: raw-downloads-${{ matrix.region }}
           path: pipeline/.cache/
           retention-days: 14
           if-no-files-found: ignore
+      - name: Check the build only changed its own region's folder
+        working-directory: .
+        shell: bash
+        run: |
+          other=$(git status --porcelain --untracked-files=all -- web/public/data | awk '{print $NF}' | grep -v "^web/public/data/$REGION/" || true)
+          if [ -n "$other" ]; then
+            echo "::error::The $REGION build changed files outside web/public/data/$REGION/:"
+            echo "$other"
+            exit 1
+          fi
       - name: Commit updated data
         working-directory: .
         run: |
           git config user.name "deer-scout-data-bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add web/public/data
+          git add "web/public/data/$REGION"
           if git diff --cached --quiet; then
-            echo "No data changes."
+            echo "No data changes for $REGION."
           else
-            git commit -m "Data refresh $(date -u +%Y-%m-%d)"
-            # If an earlier run's data landed meanwhile, this run's files win: they come from newer code.
-            git pull --rebase -X theirs origin main
-            git push origin HEAD:main
+            git commit -m "Data refresh $(date -u +%Y-%m-%d) ($REGION)"
+            # Only this region's folder is in the commit, so another region's run landing meanwhile
+            # can't conflict. If an earlier run of this same region landed meanwhile, this run's
+            # files win: they come from newer code.
+            git pull --rebase -X theirs origin "$BRANCH"
+            git push origin "HEAD:$BRANCH"
           fi
       - name: Save the run log to the run-logs branch
         if: always()
@@ -97,6 +146,7 @@ jobs:
           git fetch origin run-logs || true
           if git rev-parse --verify origin/run-logs >/dev/null 2>&1; then git checkout -q -B run-logs origin/run-logs; else git checkout -q --orphan run-logs; git rm -rf -q . || true; fi
           cp /tmp/run.log latest.log
-          git add latest.log
-          git commit -q -m "Run ${{ github.run_id }} (${{ job.status }})" || true
+          cp /tmp/run.log "$REGION.log"
+          git add latest.log "$REGION.log"
+          git commit -q -m "Run ${{ github.run_id }} $REGION (${{ job.status }})" || true
           git push -q origin run-logs || true

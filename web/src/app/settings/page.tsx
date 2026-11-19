@@ -2,6 +2,7 @@
 
 import { useData } from "@/components/DataProvider";
 import { DEFAULT_HOME, DEFAULT_SETTINGS, useSettings } from "@/components/useSettings";
+import { homeFor } from "@/lib/regions";
 import { Card, Notice, PageHeader, SectionTitle } from "@/components/ui";
 import { OfflineAreas } from "@/components/OfflineSave";
 import { DEFAULT_TRIP_WEIGHTS, type TripWeights } from "@/lib/rank";
@@ -23,7 +24,15 @@ const TRIP_LABELS: Record<keyof TripWeights, string> = {
 
 export default function SettingsPage() {
   const [s, update] = useSettings();
-  const { catalog, manifest } = useData();
+  const { catalog, manifest, region, regions, setRegion } = useData();
+  const home = homeFor(s, region);
+  const setHome = (h: typeof home | null) => {
+    const homes = { ...s.homes };
+    if (h) homes[region.slug] = h;
+    else delete homes[region.slug];
+    // Resetting Coos also clears the starting point saved before regions existed.
+    update(region.slug === "coos" && !h ? { homes, home: DEFAULT_HOME } : { homes });
+  };
   const base = catalog?.scoring.weights ?? DEFAULT_SETTINGS.factorWeights ?? null;
   const fw = s.factorWeights ?? base;
 
@@ -31,10 +40,32 @@ export default function SettingsPage() {
     <div>
       <PageHeader title="Settings" />
       <div className="px-4">
+        <SectionTitle>Region</SectionTitle>
+        <Card className="space-y-2 p-4 text-sm">
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Region">
+            {regions.map((r) => (
+              <button
+                key={r.slug}
+                type="button"
+                role="radio"
+                aria-checked={r.slug === region.slug}
+                onClick={() => setRegion(r.slug)}
+                className={`min-h-11 rounded-xl px-3 font-medium ring-1 ${r.slug === region.slug ? "bg-blaze text-blaze-ink ring-blaze" : "bg-surface-2 ring-line"}`}
+              >
+                {r.short_name}
+              </button>
+            ))}
+          </div>
+          <p className="text-muted">{region.name}</p>
+          <p className="text-xs text-faint">
+            The app shows one region at a time. Every region is saved on the phone for use with no signal; each keeps its own starting point.
+          </p>
+        </Card>
+
         <SectionTitle>Starting point</SectionTitle>
         <Card className="space-y-2 p-4 text-sm">
           <p>
-            Distances are measured from <strong>{s.home.label}</strong> unless you tap &ldquo;Use my location&rdquo;.
+            In {region.short_name}, distances are measured from <strong>{home.label}</strong> unless you tap &ldquo;Use my location&rdquo;.
           </p>
           <div className="flex gap-2">
             <button
@@ -42,14 +73,14 @@ export default function SettingsPage() {
               className="min-h-11 rounded-xl bg-surface-2 px-3 font-medium ring-1 ring-line"
               onClick={() =>
                 navigator.geolocation?.getCurrentPosition((p) =>
-                  update({ home: { label: "Saved spot", lon: p.coords.longitude, lat: p.coords.latitude } }),
+                  setHome({ label: "Saved spot", lon: p.coords.longitude, lat: p.coords.latitude }),
                 )
               }
             >
               Save current spot
             </button>
-            <button type="button" className="min-h-11 rounded-xl px-3 text-muted" onClick={() => update({ home: DEFAULT_HOME })}>
-              Reset to Pittsburg
+            <button type="button" className="min-h-11 rounded-xl px-3 text-muted" onClick={() => setHome(null)}>
+              Reset to {region.home.label}
             </button>
           </div>
           <p className="text-xs text-faint">Stored only on this phone.</p>

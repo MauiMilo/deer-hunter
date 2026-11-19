@@ -22,7 +22,7 @@ import geopandas as gpd
 import pandas as pd
 import yaml
 
-from . import __version__, analyses, factors, granit, tiger, units, wmu
+from . import __version__, analyses, factors, granit, tiger, units, wmu, zones
 from .access import AccessRules
 from .arcgis import FetchResult, query_geojson
 from .config import (
@@ -153,29 +153,46 @@ def build(
     region: Region,
     *,
     session: Session | None = None,
-    out_dir: Path = OUTPUT_DIR,
+    out_dir: Path | None = None,
     skip: set[str] = frozenset(),
 ) -> dict[str, Any]:
     session = session or make_session()
+    out_dir = out_dir or OUTPUT_DIR / region.slug  # each region has its own folder
     factors.install()
     started = _now()
     manifest: dict[str, Any] = {
         "pipeline_version": __version__,
-        "region": {"slug": region.slug, "name": region.name, "focus_towns": list(region.focus_towns)},
+        "region": {
+            "slug": region.slug,
+            "name": region.name,
+            "short_name": region.short_name,
+            "focus_towns": list(region.focus_towns),
+            "counties": list(region.counties),
+            **({"center": list(region.center), "radius_miles": region.radius_miles} if region.by_radius else {}),
+        },
         "started_at": started,
         "sources": [],
         "warnings": [],
         "limitations": [],
     }
 
-    # 1. Region boundary (optional: fall back to the search rectangle)
+    # 1. Region boundary. A one-county region falls back to the search rectangle if the county
+    #    outline fails; a towns-within-a-radius region can't be drawn without the towns, so it stops.
     county = None
-    try:
-        county, res = tiger.county(session, region.county_geoid)
-        _record(manifest, tiger.SOURCE_COUNTY, "ok", res)
-    except SourceError as e:
-        _record(manifest, tiger.SOURCE_COUNTY, "failed", error=e.message)
-        manifest["warnings"].append("County boundary unavailable; properties were not clipped to the county line.")
+    towns_gdf = None
+    if region.by_radius:
+        towns_gdf, res = tiger.towns_within(session, region)
+        _record(manifest, tiger.SOURCE_TOWNS, "ok", res)
+        county = towns_gdf
+        manifest["region"]["towns"] = [{"town": t, "miles": m} for t, m in zip(towns_gdf["town"], towns_gdf["miles"])]
+        log.info("region: %d towns within %s miles", len(towns_gdf), region.radius_miles)
+    else:
+        try:
+            county, res = tiger.county(session, region.county_geoid)
+            _record(manifest, tiger.SOURCE_COUNTY, "ok", res)
+        except SourceError as e:
+            _record(manifest, tiger.SOURCE_COUNTY, "failed", error=e.message)
+            manifest["warnings"].append("County boundary unavailable; properties were not clipped to the county line.")
 
     # 2. Conservation and public lands (required)
     tracts, res = fetch_conservation(session, region)
@@ -187,14 +204,14 @@ def build(
     tracts = clip_to_region(tracts, county)
     log.info("tracts in region: %d", len(tracts))
 
-    # 3. Towns (optional: needed for WMU lookup)
-    towns_gdf = None
-    try:
-        towns_gdf, res = tiger.towns(session, region.county_geoid)
-        _record(manifest, tiger.SOURCE_TOWNS, "ok", res)
-    except SourceError as e:
-        _record(manifest, tiger.SOURCE_TOWNS, "failed", error=e.message)
-        manifest["warnings"].append("Town boundaries unavailable; town names are missing and the WMU fallback can't be used.")
+    # 3. Towns (optional: needed for WMU lookup). A radius region already has them from step 1.
+    if towns_gdf is None:
+        try:
+            towns_gdf, res = tiger.towns(session, region.county_geoid)
+            _record(manifest, tiger.SOURCE_TOWNS, "ok", res)
+        except SourceError as e:
+            _record(manifest, tiger.SOURCE_TOWNS, "failed", error=e.message)
+            manifest["warnings"].append("Town boundaries unavailable; town names are missing and the WMU fallback can't be used.")
 
     # 3b. Official WMU map (optional: falls back to town names)
     wmu_gdf = None
@@ -254,9 +271,13 @@ def build(
     analyses.run_all(ctx, skip=skip)
     abundance = load_abundance()
 
+    # Method-limited zones (e.g. Bear Brook's bow-only refuge east of Podunk Road).
+    region_zones = zones.in_envelope(zones.load(DATA_DIR / "zones", known_sources=set(rules.sources)), region.envelope)
+    units_ea = unit_gdf.to_crs(EQUAL_AREA).geometry
+
     prop_by_id = props.set_index("id")
     unit_records = []
-    for _, u in unit_gdf.iterrows():
+    for idx, u in unit_gdf.iterrows():
         p = prop_by_id.loc[u["property_id"]]
         signals = {
             "acres": float(u["acres"]),
@@ -269,8 +290,10 @@ def build(
             signals["abundance"] = abundance[unit_wmu[0]]
         score = score_unit(signals, cfg).to_dict()
         lon, lat = representative_lonlat(u.geometry)
+        limit = zones.limit_for(units_ea.loc[idx], region_zones, rules._cite) if region_zones else None
         unit_records.append(
             {
+                **({"method_limit": limit} if limit else {}),
                 "id": u["id"],
                 "property_id": u["property_id"],
                 "label": u["label"],
@@ -433,6 +456,9 @@ def build(
             ],
         },
     )
+    if region_zones:
+        _write(out_dir / "zones.geojson", zones.to_geojson(region_zones, rules._cite))
+        manifest["zones"] = [{"id": z.id, "name": z.name, "methods": z.methods} for z in region_zones]
     _write(out_dir / "manifest.json", _clean(manifest))
     return manifest
 
@@ -445,7 +471,7 @@ def _write(path: Path, obj: Any) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--region", default="coos", choices=sorted(REGIONS))
-    ap.add_argument("--out", type=Path, default=OUTPUT_DIR)
+    ap.add_argument("--out", type=Path, default=None, help="output folder (default: web/public/data/<region>)")
     ap.add_argument("--skip", default="", help="comma-separated analyses to skip: landcover,roads,terrain,wind")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

@@ -8,6 +8,8 @@ export interface SavedPlace {
   name: string;
   savedAt: string;
   note: string;
+  /** Region the place is in (missing on places saved before regions existed: those are Coos). */
+  region?: string;
 }
 
 const KEY = "ds.saved.v1";
@@ -34,9 +36,13 @@ export function useSaved() {
   const isSaved = useCallback((id: string) => items.some((i) => i.id === id), [items]);
 
   const toggle = useCallback(
-    (id: string, name: string) => {
+    (id: string, name: string, region?: string) => {
       const cur = loadList<SavedPlace>(KEY);
-      write(cur.some((i) => i.id === id) ? cur.filter((i) => i.id !== id) : [...cur, { id, name, savedAt: new Date().toISOString(), note: "" }]);
+      write(
+        cur.some((i) => i.id === id)
+          ? cur.filter((i) => i.id !== id)
+          : [...cur, { id, name, savedAt: new Date().toISOString(), note: "", ...(region ? { region } : {}) }],
+      );
     },
     [write],
   );

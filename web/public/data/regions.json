@@ -1,0 +1,47 @@
+{
+  "default": "coos",
+  "regions": [
+    {
+      "slug": "coos",
+      "name": "Coos County, NH",
+      "short_name": "Coos",
+      "path": "/data/coos/",
+      "center": [
+        -71.3,
+        45.05
+      ],
+      "bbox": [
+        -71.85,
+        44.2,
+        -70.95,
+        45.31
+      ],
+      "home": {
+        "label": "Pittsburg village",
+        "lon": -71.3912,
+        "lat": 45.0515
+      }
+    },
+    {
+      "slug": "concord",
+      "name": "Concord area, NH (towns within 30 miles of Concord)",
+      "short_name": "Concord area",
+      "path": "/data/concord/",
+      "center": [
+        -71.5381,
+        43.2067
+      ],
+      "bbox": [
+        -72.19,
+        42.75,
+        -70.88,
+        43.71
+      ],
+      "home": {
+        "label": "Concord (State House)",
+        "lon": -71.5381,
+        "lat": 43.2067
+      }
+    }
+  ]
+}

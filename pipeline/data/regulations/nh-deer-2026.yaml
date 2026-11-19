@@ -1,18 +1,29 @@
 # NH deer seasons, Sept 2026 - Aug 2027, for every Wildlife Management Unit (A through M). The
 # Coos County units (A, B, C1, C2, D1 and E) were entered first; D2E, D2W, F, G1, G2, H1, H2, I1,
-# I2, J1, J2, K, L and M were added on 2026-10-11 for the Concord-area (Merrimack County) region.
+# I2, J1, J2, K, L and M were added on 2026-10-11 for the Concord area.
 # On the official WMU map, WMU A is drawn as A1 and A2; deer rules for "A" cover both.
 #
 # Source: 2026-27 NH Hunting Digest (eRegulations edition, last updated 2026-08-27).
-# The online season table had a garbled layout and was reconstructed; CONFIRM in the printed
-# digest or with NH Fish and Game before relying on a date. The app shows this warning.
-# The units added on 2026-10-11 were read from the eRegulations page by a summarizing tool and
-# match the shape of other published tables (L and M: any deer all muzzleloader season, firearms
-# any-deer Nov 11-22), but have not been checked against the printed digest either.
+# CHECKED 2026-11-18: every unit and method below matches the "2026 Deer Season Dates" chart on
+# page 20 of the digest PDF (the print edition's layout, eregulations.com/assets/docs/guides/
+# 26NHHD_LR2.pdf), all 80 unit/method combinations. A test (test_every_season_matches_the_digest_chart)
+# keeps them in step. NH Fish and Game's Nov 5, 2026 news release confirms firearms season
+# Nov 11 - Dec 6, closing Nov 29 in WMU A.
 
 season_year: "2026-27"
-verified_against_print: false
+verified_against_print: true
 sources:
+  digest_pdf_chart:
+    title: "2026-27 NH Hunting Digest (PDF, print layout) - 2026 Deer Season Dates chart, p. 20"
+    url: https://www.eregulations.com/assets/docs/guides/26NHHD_LR2.pdf
+    publisher: NH Fish and Game Department (eRegulations)
+    retrieved: "2026-11-18"
+  nhfg_firearms_release:
+    title: "Firearms deer season opens Wednesday, November 11 (NH Fish and Game news release)"
+    url: https://nhfishgame.com/2026/11/05/firearms-deer-season-opens-wednesday-november-11/
+    publisher: NH Fish and Game Department
+    source_date: "2026-11-05"
+    retrieved: "2026-11-18"
   seasons:
     title: "2026-27 NH Hunting Digest - Deer Hunting Seasons"
     url: https://www.eregulations.com/newhampshire/hunting/deer-hunting-seasons

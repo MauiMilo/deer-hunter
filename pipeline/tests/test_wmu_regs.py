@@ -117,11 +117,57 @@ def test_concord_area_unit_dates():
     assert [u for u in {u for s in regs["seasons"] if s["method"] == "archery" for u in s["units"]} if spans(u, "archery")[0][1] != "2026-12-15"] == ["A"]
 
 
-def test_merrimack_region_is_defined():
-    from deerscout.config import MERRIMACK, REGIONS
+def test_concord_region_is_defined():
+    from deerscout.config import CONCORD, REGIONS
 
-    assert REGIONS["merrimack"] is MERRIMACK
-    assert MERRIMACK.county_geoid == "33013"
-    lon_min, lat_min, lon_max, lat_max = MERRIMACK.envelope
+    assert REGIONS["concord"] is CONCORD
+    assert "33013" in CONCORD.counties  # Merrimack
+    assert "33011" in CONCORD.counties  # Hillsborough: Weare and the south side of Hopkinton-Everett
+    assert CONCORD.by_radius and CONCORD.radius_miles == 30.0
+    lon_min, lat_min, lon_max, lat_max = CONCORD.envelope
     assert lon_min < -71.54 < lon_max and lat_min < 43.21 < lat_max  # Concord is inside
-    assert "Concord" in MERRIMACK.focus_towns
+    assert lon_min < -71.80 < lon_max and lat_min < 43.10 < lat_max  # Weare too
+    assert "Concord" in CONCORD.focus_towns and "Weare" in CONCORD.focus_towns
+
+
+# The 2026 deer season chart from the 2026-27 NH Hunting Digest PDF (print layout), page 20,
+# eregulations.com/assets/docs/guides/26NHHD_LR2.pdf, checked 2026-11-18. Every unit and method
+# in the regulations file must match it exactly.
+_ALL = ["A", "B", "C1", "C2", "D1", "D2E", "D2W", "E", "F", "G1", "G2", "H1", "H2", "I1", "I2", "J1", "J2", "K", "L", "M"]
+
+
+def _digest_chart():
+    from datetime import timedelta
+
+    d = lambda m, dd: date(2026, m, dd)  # noqa: E731
+    chart = {}
+
+    def add(units, method, spans):
+        for u in units:
+            chart.setdefault((u, method), []).extend(spans)
+
+    add(["A"], "archery", [(d(9, 15), d(12, 8), "any")])
+    add([u for u in _ALL if u != "A"], "archery", [(d(9, 15), d(12, 15), "any")])
+    add(["A", "B", "C1", "C2", "D1"], "muzzleloader", [(d(10, 31), d(11, 10), "antlered")])
+    muzz_any_until = {("D2E", "E"): d(10, 31), ("F", "G2", "I2"): d(11, 1), ("I1",): d(11, 2), ("H1", "H2", "J1", "J2", "K"): d(11, 3), ("D2W",): d(11, 4), ("G1",): d(11, 5)}
+    for units, end in muzz_any_until.items():
+        add(units, "muzzleloader", [(d(10, 31), end, "any"), (end + timedelta(1), d(11, 10), "antlered")])
+    add(["L", "M"], "muzzleloader", [(d(10, 31), d(11, 10), "any")])
+    add(["A"], "firearm", [(d(11, 11), d(11, 11), "any"), (d(11, 12), d(11, 29), "antlered")])
+    fire_any_until = {("B", "C1", "C2", "D1"): d(11, 11), ("D2E", "E", "F", "G2", "I2"): d(11, 12), ("I1",): d(11, 13), ("J1", "K"): d(11, 14), ("H1", "H2", "J2"): d(11, 15), ("D2W", "G1"): d(11, 16), ("L", "M"): d(11, 22)}
+    for units, end in fire_any_until.items():
+        add(units, "firearm", [(d(11, 11), end, "any"), (end + timedelta(1), d(12, 6), "antlered")])
+    add(_ALL, "youth", [(d(10, 24), d(10, 25), "any")])
+    return chart
+
+
+def test_every_season_matches_the_digest_chart():
+    regs = yaml.safe_load((DATA_DIR / "regulations" / "nh-deer-2026.yaml").read_text())
+    mine = {}
+    for s in regs["seasons"]:
+        for u in s["units"]:
+            mine.setdefault((u, s["method"]), []).append((date.fromisoformat(s["start"]), date.fromisoformat(s["end"]), s["deer"]))
+    chart = _digest_chart()
+    assert set(mine) == set(chart)
+    for key in chart:
+        assert sorted(mine[key]) == sorted(chart[key]), key

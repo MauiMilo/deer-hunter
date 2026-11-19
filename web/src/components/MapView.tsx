@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useData } from "@/components/DataProvider";
 import type { Map as MlMap, MapLayerMouseEvent, StyleSpecification } from "maplibre-gl";
 
 export type BaseLayer = "topo" | "imagery" | "hillshade";
@@ -69,7 +70,7 @@ export default function MapView({
   fitMaxZoom = 14,
   imported = null,
   onView,
-  center = [-71.3, 45.05],
+  center,
   zoom = 9,
   highlightPropertyId = null,
   highlightUnitId = null,
@@ -84,6 +85,10 @@ export default function MapView({
   onSelectUnit,
   onSelectSpot,
 }: Props) {
+  // Each region's map layers come from its own folder. Pages give MapView key={region.slug}, so
+  // switching region starts a fresh map rather than mixing two regions' layers.
+  const { fileUrl, region, zones } = useData();
+  const mapCenter = center ?? region.center;
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
@@ -101,7 +106,7 @@ export default function MapView({
       const m = new ml.Map({
         container: el.current,
         style: style(),
-        center,
+        center: mapCenter,
         zoom,
         maxZoom: 17.5,
         attributionControl: { compact: true },
@@ -128,8 +133,8 @@ export default function MapView({
       };
       m.on("moveend", report);
       m.on("load", () => {
-        m.addSource("properties", { type: "geojson", data: "/data/properties.geojson", promoteId: "id" });
-        m.addSource("blocks", { type: "geojson", data: "/data/blocks.geojson", promoteId: "id" });
+        m.addSource("properties", { type: "geojson", data: fileUrl("properties.geojson"), promoteId: "id" });
+        m.addSource("blocks", { type: "geojson", data: fileUrl("blocks.geojson"), promoteId: "id" });
         m.addLayer({ id: "prop-fill", type: "fill", source: "properties", paint: { "fill-color": STATUS_COLOR, "fill-opacity": 0.18 } });
         m.addLayer({ id: "prop-line", type: "line", source: "properties", paint: { "line-color": STATUS_COLOR, "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.8, 13, 2.2] } });
         m.addLayer({
@@ -182,7 +187,7 @@ export default function MapView({
         m.on("click", "prop-fill", click);
 
         // Scouting spots: saddles and benches picked from the elevation data.
-        m.addSource("spots", { type: "geojson", data: "/data/spots.geojson", promoteId: "id" });
+        m.addSource("spots", { type: "geojson", data: fileUrl("spots.geojson"), promoteId: "id" });
         m.addLayer({
           id: "spot-dot",
           type: "circle",
@@ -217,7 +222,7 @@ export default function MapView({
           paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#ff6b1a", "circle-stroke-width": 3 },
         });
         // Parking areas confirmed on the ground.
-        m.addSource("parking", { type: "geojson", data: "/data/parking.geojson" });
+        m.addSource("parking", { type: "geojson", data: fileUrl("parking.geojson") });
         m.addLayer({
           id: "parking-dot",
           type: "circle",
@@ -290,11 +295,38 @@ export default function MapView({
     const m = map.current;
     if (!m || !ready || !landcover) return;
     if (!m.getSource("landcover")) {
-      m.addSource("landcover", { type: "image", url: "/data/landcover.png", coordinates: landcover.coordinates });
+      m.addSource("landcover", { type: "image", url: fileUrl("landcover.png"), coordinates: landcover.coordinates });
       m.addLayer({ id: "landcover", type: "raster", source: "landcover", paint: { "raster-opacity": 0.75, "raster-resampling": "nearest" }, layout: { visibility: "none" } }, "prop-fill");
     }
     m.setLayoutProperty("landcover", "visibility", showLandcover ? "visible" : "none");
-  }, [landcover, showLandcover, ready]);
+  }, [landcover, showLandcover, ready, fileUrl]);
+
+  // Method-limited zones (e.g. Bear Brook's bow-only refuge): dashed outline with a label.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !zones || m.getSource("zones")) return;
+    m.addSource("zones", { type: "geojson", data: zones as unknown as GeoJSON.FeatureCollection });
+    m.addLayer({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": "#ff6b1a", "fill-opacity": 0.08 } });
+    m.addLayer({
+      id: "zone-line",
+      type: "line",
+      source: "zones",
+      paint: { "line-color": "#ff6b1a", "line-width": 2.5, "line-dasharray": [2, 1.5] },
+    });
+    m.addLayer({
+      id: "zone-label",
+      type: "symbol",
+      source: "zones",
+      minzoom: 10,
+      layout: {
+        "text-field": ["case", ["get", "approximate"], "Bow only (approx. edge)", "Bow only"],
+        "text-font": [LABEL_FONT],
+        "text-size": 12,
+        "symbol-placement": "point",
+      },
+      paint: { "text-color": "#ff6b1a", "text-halo-color": "#000", "text-halo-width": 1.2 },
+    });
+  }, [zones, ready]);
 
   useEffect(() => {
     const m = map.current;

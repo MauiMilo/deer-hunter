@@ -35,7 +35,7 @@ export default function PropertyPage() {
 function PropertyInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const { propertyById, unitById, spotById, catalog, regs, loading, windHistory } = useData();
+  const { propertyById, unitById, spotById, catalog, regs, loading, windHistory, region, regions, setRegion } = useData();
   const [focusSpot, setFocusSpot] = useState<Spot | null>(null);
   const [settings] = useSettings();
   const id = params.get("id") ?? "";
@@ -69,10 +69,22 @@ function PropertyInner() {
   };
 
   if (loading) return <p className="p-6 text-muted">Loading…</p>;
+  // Links from Saved carry the place's region; offer to switch if it's not the one being shown.
+  const otherRegion = regions.find((r) => r.slug === params.get("region") && r.slug !== region.slug);
+  if (!prop && otherRegion) {
+    return (
+      <div className="space-y-3 p-4">
+        <Notice tone="warn">This place is in the {otherRegion.short_name} region. The app is showing {region.short_name}.</Notice>
+        <button type="button" onClick={() => setRegion(otherRegion.slug)} className="min-h-11 rounded-xl bg-surface-2 px-3 font-medium ring-1 ring-line">
+          Show {otherRegion.short_name}
+        </button>
+      </div>
+    );
+  }
   if (!prop || !catalog || !regs) {
     return (
       <div className="p-4">
-        <Notice tone="bad">That property isn&apos;t in the current data.</Notice>
+        <Notice tone="bad">That property isn&apos;t in the {region.short_name} data.</Notice>
         <Link href="/" className="mt-4 inline-block text-info underline">
           Back to Hunt
         </Link>
@@ -108,6 +120,7 @@ function PropertyInner() {
           </>
         )}
 
+        {unit?.method_limit && <MethodLimitNotice unit={unit} />}
         <AccessSection prop={prop} />
         {unit && <DaySection unit={unit} day={day} window={window} today={today} fc={fc} onDay={(d) => setParam("date", d)} />}
         {unit && (
@@ -146,6 +159,7 @@ function PropertyInner() {
 
 function Header({ prop }: { prop: Property }) {
   const { isSaved, toggle } = useSaved();
+  const { region, catalog } = useData();
   const saved = isSaved(prop.id);
   return (
     <header className="pt-safe px-4 pb-3">
@@ -156,14 +170,14 @@ function Header({ prop }: { prop: Property }) {
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold leading-tight tracking-tight">{prop.name}</h1>
           <p className="mt-0.5 text-sm text-muted">
-            {[prop.agency, prop.protection_type, `${Math.round(prop.acres).toLocaleString()} acres in ${prop.towns.join(", ") || "Coos County"}`]
+            {[prop.agency, prop.protection_type, `${Math.round(prop.acres).toLocaleString()} acres in ${prop.towns.join(", ") || catalog?.region.name || region.name}`]
               .filter(Boolean)
               .join(" · ")}
           </p>
         </div>
         <button
           type="button"
-          onClick={() => toggle(prop.id, prop.name)}
+          onClick={() => toggle(prop.id, prop.name, region.slug)}
           className={`min-h-11 shrink-0 rounded-xl px-3 text-sm font-medium ring-1 ${saved ? "bg-blaze text-blaze-ink ring-blaze" : "bg-surface-2 ring-line"}`}
           aria-pressed={saved}
         >
@@ -190,7 +204,7 @@ function PropertyMap({
   onUnit: (id: string) => void;
   onSpot: (id: string) => void;
 }) {
-  const { landcover } = useData();
+  const { landcover, region } = useData();
   const { geojson: imported } = useImported();
   const [base, setBase] = useState<BaseLayer>("topo");
   const [lcOn, setLcOn] = useState(false);
@@ -206,6 +220,7 @@ function PropertyMap({
     <div>
       <div className="relative">
         <MapView
+          key={region.slug}
           className="h-72 w-full"
           base={base}
           fitBbox={bbox}
@@ -393,7 +408,24 @@ function DaySection({
   );
 }
 
+function MethodLimitNotice({ unit }: { unit: Unit }) {
+  const lim = unit.method_limit!;
+  return (
+    <div className="mt-4">
+      <Notice tone="warn">
+        <p className="font-semibold">{lim.methods.map((m) => METHOD_LABELS[m]).join(" and ")} only{unit.label ? ` in ${unit.label}` : ""}</p>
+        <p className="mt-1">{lim.note}</p>
+        {lim.approximate && <p className="mt-1 text-xs text-muted">The zone&apos;s edge on the map is approximate. {lim.how_drawn}</p>}
+        <div className="mt-2">
+          <Sources sources={lim.sources} />
+        </div>
+      </Notice>
+    </div>
+  );
+}
+
 function Records({ prop }: { prop: Property }) {
+  const { region } = useData();
   const rows: [string, string | number | null][] = [
     ["Manager / protecting agency", prop.agency],
     ["Second agency", prop.secondary_agency],
@@ -423,7 +455,11 @@ function Records({ prop }: { prop: Property }) {
               </div>
             ))}
         </dl>
-        {prop.clipped_to_region && <p className="mt-3 text-xs text-faint">This property continues past the county line; only the Coos County part is shown.</p>}
+        {prop.clipped_to_region && (
+          <p className="mt-3 text-xs text-faint">
+            This property continues past the edge of the {region.short_name} region; only the part inside it is shown.
+          </p>
+        )}
         {prop.overlaps.length > 0 && (
           <p className="mt-3 text-xs text-faint">
             Overlaps: {prop.overlaps.map((o) => `${o.name} (${o.shared_acres.toLocaleString()} ac shared)`).join("; ")}.

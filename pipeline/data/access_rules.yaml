@@ -90,11 +90,21 @@ sources:
     url: https://fws.gov/refuge/umbagog/visit-us/activities/hunting
     publisher: US Fish and Wildlife Service
     retrieved: "2026-10-08"
+  rsa_212_14:
+    title: "RSA 212:14 - Bear Brook Game Refuge may be open to taking deer by bow and arrow"
+    url: https://gc.nh.gov/rsa/html/XVIII/212/212-14.htm
+    publisher: NH General Court (state law)
+    retrieved: "2026-11-18"
+  nh_digest_deer:
+    title: "2026-27 NH Hunting Digest - Deer hunting regulations (Bear Brook Refuge: bow and arrow only, archery license required)"
+    url: https://www.eregulations.com/newhampshire/hunting/deer-hunting-regulations/
+    publisher: NH Fish and Game Department (eRegulations edition)
+    retrieved: "2026-11-18"
   corps_hopkinton_everett:
     title: "Hopkinton-Everett Lake (USACE Corps Lakes page: hunting listed among the project's recreation)"
     url: https://corpslakes.erdc.dren.mil/visitors/projects.cfm?Id=E607700
     publisher: US Army Corps of Engineers, New England District
-    retrieved: "2026-10-11"
+    retrieved: "2026-11-18"
   hopkinton_everett_trails:
     title: "Hopkinton-Everett Multi-use Trail System (says much of the 10,000-acre project is open to hunting and fishing)"
     url: https://www.trailfinder.info/trails/trail/hopkinton-everett-multi-use-trail-system?lid=14
@@ -200,12 +210,12 @@ rules:
       name_contains: "Bear Brook"
     summary: "Bear Brook State Park is state park land open to hunting under Res 7301.10, with one special rule: the game refuge area east of Podunk Road is bow and arrow only."
     restrictions:
-      - "East of Podunk Road (the game refuge): archery only, no firearms or muzzleloaders."
+      - "East of Podunk Road (the game refuge): deer by bow and arrow only, and only with a valid archery license (Res 7301.10(c), RSA 212:14). No firearms or muzzleloaders there. Whether a crossbow counts as bow and arrow in the refuge isn't stated; ask Fish and Game. The map shows this area, drawn approximately."
       - "No firearm discharge within 300 ft of occupied developed areas such as the campground, beaches and the archery ranges."
       - "Portable tree stands only, Aug 1 - Jan 31, no nails or damage to trees. No permanent stands."
       - "Baiting only by Fish and Game permit."
       - "Heavily used by hikers, bikers and riders; expect company, especially on weekends."
-    sources: [res_7301_10, nhfg_state_lands_faq]
+    sources: [res_7301_10, rsa_212_14, nh_digest_deer, nhfg_state_lands_faq]
 
   - id: dncr-fee-land
     status: verified
@@ -274,7 +284,7 @@ rules:
       - "Multi-use trails run through the project, so hunters tend to work away from the busy trails."
       - "Corps stand and baiting rules weren't found; use portable stands and ask the office."
     sources: [corps_hopkinton_everett, hopkinton_everett_trails, hopkinton_everett_rec_areas]
-    note: "The Corps' own hunting page couldn't be fetched, so this rests on the project listing plus secondary sources. Treat the closed-area list as unknown until you have the Corps map."
+    note: "Rechecked 2026-11-18: the Corps Lakes project page still lists hunting at Hopkinton-Everett. The New England District's own Hopkinton-Everett page refuses automated requests, so the closed areas, the recreation-area ban and any stand or baiting rules come only from secondary sources. Treat them as unverified until you have the Corps map or have called the office."
 
   - id: other-federal
     status: unknown

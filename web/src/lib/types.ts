@@ -83,6 +83,22 @@ export interface Unit {
   wmu: Wmu;
   score: Score;
   spot_ids?: string[];
+  /** Set when part of the block is in a zone that allows only some methods (e.g. Bear Brook's bow-only refuge). */
+  method_limit?: MethodLimit;
+}
+
+export interface MethodLimit {
+  /** Methods allowed in the block (the stricter rule is used for the whole block). */
+  methods: Method[];
+  zone_id: string;
+  zone_name: string;
+  /** Share of the block inside the zone (0-1). */
+  share: number;
+  /** True when the zone's edge is drawn approximately (no official map layer). */
+  approximate: boolean;
+  note: string;
+  how_drawn: string;
+  sources: SourceRef[];
 }
 
 export interface Property {

@@ -4,8 +4,10 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const OUT = new URL("../out/", import.meta.url).pathname;
+// fileURLToPath (not .pathname) so folder names with spaces work.
+const OUT = fileURLToPath(new URL("../out/", import.meta.url));
 const SKIP = new Set(["sw.js", "precache.json"]);
 
 function walk(dir) {
