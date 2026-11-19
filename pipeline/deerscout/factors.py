@@ -156,11 +156,16 @@ def abundance_factor(s: dict[str, Any], cfg: dict[str, Any]) -> FactorResult:
     c = cfg["abundance"]
     v = a["buck_kill_per_sqmi"]
     value = 100 * ramp(v, c["low"], c["high"])
+    where = f"{a['town']} (town)" if a.get("level") == "town" else f"WMU {a['wmu']}"
+    src = a.get("source") or {}
     ev = [
-        f"WMU {a['wmu']}: {v:.2f} adult bucks taken per square mile in {a['year']} (Fish and Game's main deer-abundance index).",
+        f"{where}: {v:.2f} adult bucks taken per square mile in {a['year']} (Fish and Game's main deer-abundance index).",
         "A regional average: it says nothing about this specific block.",
     ]
-    return FactorResult("abundance", value, "medium", "fact", ev, {"buck_kill_per_sqmi": v})
+    if src.get("title"):
+        ev.append(f"Source: {src['title']}" + (f", {src['page']}" if src.get("page") else "") + ".")
+    signals = {"buck_kill_per_sqmi": v, "where": where, "year": a.get("year"), "source": src}
+    return FactorResult("abundance", value, "medium", "fact", ev, signals)
 
 
 def install() -> None:

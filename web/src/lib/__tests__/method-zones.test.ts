@@ -67,3 +67,28 @@ describe("next opening across a region's WMUs", () => {
     expect(nextOpeningAny(regs, "2026-11-01", "firearm", [])).toBeNull();
   });
 });
+
+describe("deer abundance on the property screen", () => {
+  it("reads the figure and its source from the block's score", async () => {
+    const { abundanceInfo } = await import("../rank");
+    const u = unit("x", "x", 50, [-71.6, 43.2], ["K"]);
+    expect(abundanceInfo(u)).toBeNull(); // not loaded yet
+    u.score.factors.push({
+      key: "abundance",
+      label: "Regional deer abundance",
+      value: 80,
+      weight: 0.1,
+      confidence: "medium",
+      basis: "fact",
+      basis_label: "",
+      evidence: [],
+      signals: { buck_kill_per_sqmi: 2.06, where: "WMU K", year: 2025, source: { title: "2025 NH Wildlife Harvest Summary", url: "https://www.wildlife.nh.gov/x.pdf" } },
+    });
+    expect(abundanceInfo(u)).toEqual({
+      buckKillPerSqMi: 2.06,
+      where: "WMU K",
+      year: 2025,
+      source: { title: "2025 NH Wildlife Harvest Summary", url: "https://www.wildlife.nh.gov/x.pdf" },
+    });
+  });
+});

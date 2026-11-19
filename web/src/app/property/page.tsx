@@ -16,6 +16,7 @@ import { SpotCard, WindRose } from "@/components/spot-ui";
 import { Card, Chip, FactorList, Notice, ScorePill, SectionTitle, Sources, StatusBadge, WindArrow } from "@/components/ui";
 import type { Window } from "@/lib/conditions";
 import { addDays, labelDay, monthDay, ymdInTz } from "@/lib/dates";
+import { abundanceInfo } from "@/lib/rank";
 import { METHOD_LABELS, seasonStatus } from "@/lib/seasons";
 import { formatClock } from "@/lib/sun";
 import { evaluateSpot } from "@/lib/spots";
@@ -148,6 +149,7 @@ function PropertyInner() {
               )}
               <FactorList factors={unit.score.factors} />
             </Card>
+            <AbundanceSection unit={unit} />
           </>
         )}
         <Records prop={prop} />
@@ -404,6 +406,43 @@ function DaySection({
           })}
         </div>
       )}
+    </>
+  );
+}
+
+function AbundanceSection({ unit }: { unit: Unit }) {
+  const a = abundanceInfo(unit);
+  return (
+    <>
+      <SectionTitle>Deer abundance</SectionTitle>
+      <Card className="p-4 text-sm">
+        {a ? (
+          <>
+            <p>
+              <strong>{a.buckKillPerSqMi.toFixed(2)}</strong> adult bucks taken per square mile
+              {a.where ? ` in ${a.where}` : ""}
+              {a.year ? ` (${a.year} season)` : ""}.
+            </p>
+            <p className="mt-1 text-xs text-muted">Fish and Game&apos;s main index of how many deer an area holds. A regional average, not a count for this block.</p>
+            {a.source?.title && (
+              <p className="mt-2 text-xs">
+                Source:{" "}
+                {a.source.url ? (
+                  <a href={a.source.url} target="_blank" rel="noreferrer" className="text-info underline decoration-info/40 underline-offset-2">
+                    {a.source.title}
+                  </a>
+                ) : (
+                  a.source.title
+                )}
+                {a.source.page ? `, ${a.source.page}` : ""}
+                {a.source.retrieved ? <span className="text-faint"> · retrieved {a.source.retrieved}</span> : null}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-muted">Fish and Game&apos;s buck kill per square mile isn&apos;t loaded yet, so it isn&apos;t part of this score.</p>
+        )}
+      </Card>
     </>
   );
 }

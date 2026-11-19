@@ -123,16 +123,45 @@ def _bbox(geom) -> list[float]:
     return [round(v, 5) for v in geom.bounds]
 
 
-def load_abundance() -> dict[str, dict[str, Any]]:
-    """WMU-level harvest indices (data/abundance.yaml), if that file has been filled in from a source."""
-    path = DATA_DIR / "abundance.yaml"
+def load_abundance(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Adult buck kill per square mile (data/abundance.yaml), if it has been filled in from a source.
+
+    Returns {"wmu:<code>": row, "town:<name>": row}. Rows carry the year and the source so the app
+    can show where the number came from. A file without a source is refused.
+    """
+    path = path or DATA_DIR / "abundance.yaml"
     if not path.exists():
         return {}
     doc = yaml.safe_load(path.read_text()) or {}
-    out = {}
-    for row in doc.get("wmus") or []:
-        out[str(row["wmu"])] = {**row, "source": doc.get("source")}
+    src = doc.get("source") or {}
+    if (doc.get("wmus") or doc.get("towns")) and not (src.get("title") and src.get("retrieved")):
+        raise ValueError(f"{path.name}: abundance numbers need a source with a title and retrieved date")
+    out: dict[str, dict[str, Any]] = {}
+    for kind, key in (("wmus", "wmu"), ("towns", "town")):
+        for row in doc.get(kind) or []:
+            v = row.get("buck_kill_per_sqmi")
+            if not isinstance(v, (int, float)) or v < 0:
+                raise ValueError(f"{path.name}: bad buck_kill_per_sqmi in {row}")
+            name = str(row[key]).strip()
+            out[f"{key}:{name.lower()}"] = {
+                **row,
+                key: name,
+                "level": key,
+                "year": row.get("year", doc.get("year")),
+                "source": src,
+            }
     return out
+
+
+def abundance_for(abundance: dict[str, dict[str, Any]], town: str | None, wmu_units: list[str]) -> dict[str, Any] | None:
+    """The most local figure for a block: its town if the report gives towns, else its WMU.
+
+    A block straddling a WMU line gets the lower of its units' figures (the cautious choice).
+    """
+    if town and f"town:{town.lower()}" in abundance:
+        return abundance[f"town:{town.lower()}"]
+    rows = [abundance[f"wmu:{u.lower()}"] for u in wmu_units if f"wmu:{u.lower()}" in abundance]
+    return min(rows, key=lambda r: r["buck_kill_per_sqmi"]) if rows else None
 
 
 def load_parking() -> list[dict[str, Any]]:
@@ -285,9 +314,9 @@ def build(
             "boundary_accuracy_code": _clean(p.get("boundary_accuracy_code")),
             **ctx.signals.get(u["id"], {}),
         }
-        unit_wmu = u["wmu"]["units"]
-        if len(unit_wmu) >= 1 and unit_wmu[0] in abundance:
-            signals["abundance"] = abundance[unit_wmu[0]]
+        ab = abundance_for(abundance, u["town"], list(u["wmu"]["units"]))
+        if ab:
+            signals["abundance"] = ab
         score = score_unit(signals, cfg).to_dict()
         lon, lat = representative_lonlat(u.geometry)
         limit = zones.limit_for(units_ea.loc[idx], region_zones, rules._cite) if region_zones else None

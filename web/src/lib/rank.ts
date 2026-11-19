@@ -157,3 +157,23 @@ export function rank(input: RankInput): RankOutput {
   });
   return { ranked, excluded };
 }
+
+export interface AbundanceInfo {
+  buckKillPerSqMi: number;
+  where: string;
+  year: number | string | null;
+  source: { title?: string; url?: string; page?: string; retrieved?: string } | null;
+}
+
+/** The deer-abundance figure behind a block's score (Fish and Game buck kill per square mile), if loaded. */
+export function abundanceInfo(unit: Unit): AbundanceInfo | null {
+  const f = unit.score.factors.find((x) => x.key === "abundance");
+  const s = f?.signals as Record<string, unknown> | undefined;
+  if (!f || f.value === null || !s || typeof s.buck_kill_per_sqmi !== "number") return null;
+  return {
+    buckKillPerSqMi: s.buck_kill_per_sqmi,
+    where: typeof s.where === "string" ? s.where : "",
+    year: (s.year as number | string | undefined) ?? null,
+    source: (s.source as AbundanceInfo["source"]) ?? null,
+  };
+}
