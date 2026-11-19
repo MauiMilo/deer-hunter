@@ -142,9 +142,11 @@ def run(tmp_path, monkeypatch):
     monkeypatch.setattr("deerscout.analyses.DEM_SOURCE", "imageserver")
     monkeypatch.setattr("deerscout.analyses.DEM_RES_M", 6.0)
 
-    def _run(region=COOS, default_out=False, **kw):
+    def _run(region=COOS, default_out=False, today=None, **kw):
         out = build_mod.OUTPUT_DIR / region.slug if default_out else tmp_path / "out"
-        manifest = build_mod.build(region, session=FakeSession(handler_for(make_world(), **kw)), out_dir=None if default_out else out)
+        manifest = build_mod.build(
+            region, session=FakeSession(handler_for(make_world(), **kw)), out_dir=None if default_out else out, today=today
+        )
         load = lambda n: json.loads((out / n).read_text())  # noqa: E731
         return manifest, load
 
@@ -301,3 +303,52 @@ def test_default_output_is_the_region_folder(run, tmp_path, monkeypatch):
     run(default_out=True)
     assert (tmp_path / "data" / "coos" / "catalog.json").exists()
     assert not (tmp_path / "data" / "catalog.json").exists()  # never the shared top-level folder
+
+
+def _fake_abundance(monkeypatch):
+    src = {"title": "Test harvest summary", "retrieved": "2026-11-19"}
+    rows = {f"wmu:{w.lower()}": {"wmu": w, "level": "wmu", "buck_kill_per_sqmi": 1.5, "year": 2025, "source": src} for w in ("A", "B")}
+    monkeypatch.setattr(build_mod, "load_abundance", lambda path=None: rows)
+
+
+def _abundance_values(load):
+    catalog = load("catalog.json")
+    status = {p["id"]: p["access"]["status"] for p in catalog["properties"]}
+    return [
+        next(f["value"] for f in u["score"]["factors"] if f["key"] == "abundance")
+        for u in catalog["units"]
+        if status[u["property_id"]] != "prohibited"
+    ]
+
+
+def test_coos_scores_ignore_abundance_until_after_the_season(run, monkeypatch):
+    """Coos rankings mustn't shift while it's being hunted: abundance waits until Dec 9, 2026."""
+    from datetime import date
+
+    _fake_abundance(monkeypatch)
+    manifest, load = run(today=date(2026, 11, 18))
+    assert all(v is None for v in _abundance_values(load))
+    assert any("not used in this region's scores until 2026-12-09" in x for x in manifest["limitations"])
+
+    manifest, load = run(today=date(2026, 12, 14))  # first weekly refresh after archery closes
+    assert all(v is not None for v in _abundance_values(load))
+    assert not any("until 2026-12-09" in x for x in manifest["limitations"])
+
+
+def test_regions_without_a_hold_use_abundance_right_away(run, monkeypatch):
+    from dataclasses import replace
+    from datetime import date
+
+    _fake_abundance(monkeypatch)
+    manifest, load = run(region=replace(COOS, slug="no-hold", abundance_from=None), today=date(2026, 11, 18))
+    assert all(v is not None for v in _abundance_values(load))
+
+
+def test_abundance_hold_dates():
+    from datetime import date
+
+    from deerscout.config import CONCORD
+
+    assert build_mod.abundance_held(COOS, date(2026, 12, 8))
+    assert not build_mod.abundance_held(COOS, date(2026, 12, 9))
+    assert not build_mod.abundance_held(CONCORD, date(2026, 11, 18))  # the Concord area uses it as soon as it's loaded

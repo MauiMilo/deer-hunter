@@ -71,9 +71,17 @@ Map tiles can be saved on the phone for use with no signal (Settings → Offline
 
 ## Not used (yet)
 
-- **Deer harvest per square mile by WMU** (Fish and Game deer assessment / harvest summary): the
-  official PDF couldn't be downloaded from here or from GitHub. The "regional deer abundance"
-  factor is skipped until `pipeline/data/abundance.yaml` is filled in from an official source.
+- **Adult buck kill per square mile by WMU or town** (NH Fish and Game, 2025 Wildlife Harvest
+  Summary, www.wildlife.nh.gov/hunting-nh/hunting-reports-harvest-summaries): Fish and Game's
+  site refuses automated downloads (rechecked 2026-11-18; the 2026-27 digest only points to the
+  summary). The "regional deer abundance" factor is skipped until `pipeline/data/abundance.yaml`
+  is filled in from it, with the source, page and date. Coos holds it back until 2026-12-09
+  (`Region.abundance_from`) so rankings don't change mid-season.
+- **In-season county deer kill** (Fish and Game tally "as of 11/15/26", seen as a photo in a
+  social-media post, 2026-11-18): not used. It counts all deer by county partway through the
+  season, not adult bucks per square mile by WMU or town, and it isn't a published report. For
+  the record, it showed 2026 vs 2025 at the same date: Coos 453 vs 618 (-27%), Merrimack 816 vs
+  999 (-18%), statewide 9,080 vs 10,002 (-9%).
 - **USDA Cropland Data Layer, USFS forest type maps, NH Wildlife Action Plan habitat map**: candidates
   for better forest-type and mast detail; not wired in.
 - **OnX or other proprietary maps**: not used. User-owned GPX/KML/GeoJSON import is a later phase.

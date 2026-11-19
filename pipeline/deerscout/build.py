@@ -14,7 +14,7 @@ import json
 import logging
 import math
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -178,12 +178,18 @@ def load_parking() -> list[dict[str, Any]]:
     return out
 
 
+def abundance_held(region: Region, today: date) -> bool:
+    """True while a region's scores are kept free of the deer-abundance factor (see Region.abundance_from)."""
+    return bool(region.abundance_from) and today < date.fromisoformat(region.abundance_from)
+
+
 def build(
     region: Region,
     *,
     session: Session | None = None,
     out_dir: Path | None = None,
     skip: set[str] = frozenset(),
+    today: date | None = None,
 ) -> dict[str, Any]:
     session = session or make_session()
     out_dir = out_dir or OUTPUT_DIR / region.slug  # each region has its own folder
@@ -299,6 +305,9 @@ def build(
     )
     analyses.run_all(ctx, skip=skip)
     abundance = load_abundance()
+    held = bool(abundance) and abundance_held(region, today or datetime.now(timezone.utc).date())
+    if held:
+        abundance = {}
 
     # Method-limited zones (e.g. Bear Brook's bow-only refuge east of Podunk Road).
     region_zones = zones.in_envelope(zones.load(DATA_DIR / "zones", known_sources=set(rules.sources)), region.envelope)
@@ -434,7 +443,12 @@ def build(
             },
         }
     )
-    if not abundance:
+    if held:
+        manifest["limitations"].append(
+            f"Regional deer abundance is loaded but not used in this region's scores until {region.abundance_from}, "
+            "so rankings don't change in the middle of the season."
+        )
+    elif not abundance:
         manifest["limitations"].append("Regional deer abundance (harvest per square mile) isn't loaded yet, so that factor is skipped.")
     manifest["limitations"] += [
         "Overlapping records (for example, a state forest and an easement on the same ground) are listed separately; see each property's overlaps.",

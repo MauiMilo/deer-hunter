@@ -43,6 +43,9 @@ class Region:
     center: tuple[float, float] | None = None  # lon, lat
     radius_miles: float | None = None
     map_center: tuple[float, float] | None = None  # where the app's map opens (lon, lat); default: center
+    # First day (ISO date) the deer-abundance factor may change this region's scores. Used to keep
+    # rankings steady while you're hunting a region; None = use it as soon as it's loaded.
+    abundance_from: str | None = None
 
     @property
     def by_radius(self) -> bool:
@@ -65,6 +68,9 @@ COOS = Region(
     home=("Pittsburg village", -71.3912, 45.0515),
     focus_towns=("Pittsburg", "Clarksville", "Stewartstown"),
     map_center=(-71.3, 45.05),  # the app's map has always opened here
+    # Coos rankings stay as they are through the 2026 seasons (Unit A rifle to Nov 29, archery to
+    # Dec 8). The first weekly refresh after Dec 8 adds deer abundance to Coos scores by itself.
+    abundance_from="2026-12-09",
 )
 
 # Concord area: about an hour's drive from Concord, across county lines. There's no drive-time

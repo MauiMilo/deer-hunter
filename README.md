@@ -54,7 +54,11 @@ check the NH Hunting Digest, posted signs and property rules.
 
 ## What's not done yet
 
-- Regional deer abundance (Fish and Game buck kill per square mile): official report not yet loaded.
+- Regional deer abundance (Fish and Game adult buck kill per square mile): the app is ready for it
+  (by town or WMU, shown on the property screen with its source), but the official 2025 Wildlife
+  Harvest Summary has to be downloaded by hand because Fish and Game's site refuses automated
+  downloads. Once loaded, the Concord area uses it right away; Coos waits until Dec 9, 2026 so its
+  rankings don't change during the Coos seasons.
 - Real drive times (distances are straight-line with a rough drive estimate).
 - Hopkinton-Everett's limits (closed areas, no hunting at the developed recreation areas) come from
   secondary sources; the Corps' own page couldn't be read automatically. Call the office.
