@@ -162,6 +162,8 @@ export interface AbundanceInfo {
   buckKillPerSqMi: number;
   where: string;
   year: number | string | null;
+  /** e.g. "2024-2025 average" */
+  period: string | null;
   source: { title?: string; url?: string; page?: string; retrieved?: string } | null;
 }
 
@@ -174,6 +176,7 @@ export function abundanceInfo(unit: Unit): AbundanceInfo | null {
     buckKillPerSqMi: s.buck_kill_per_sqmi,
     where: typeof s.where === "string" ? s.where : "",
     year: (s.year as number | string | undefined) ?? null,
+    period: typeof s.period === "string" ? s.period : null,
     source: (s.source as AbundanceInfo["source"]) ?? null,
   };
 }

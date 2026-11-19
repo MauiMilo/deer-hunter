@@ -88,6 +88,7 @@ describe("deer abundance on the property screen", () => {
       buckKillPerSqMi: 2.06,
       where: "WMU K",
       year: 2025,
+      period: null,
       source: { title: "2025 NH Wildlife Harvest Summary", url: "https://www.wildlife.nh.gov/x.pdf" },
     });
   });

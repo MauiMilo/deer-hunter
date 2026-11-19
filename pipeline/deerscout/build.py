@@ -148,6 +148,7 @@ def load_abundance(path: Path | None = None) -> dict[str, dict[str, Any]]:
                 key: name,
                 "level": key,
                 "year": row.get("year", doc.get("year")),
+                "period": row.get("period", doc.get("period")),
                 "source": src,
             }
     return out

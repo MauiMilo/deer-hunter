@@ -141,6 +141,9 @@ def run(tmp_path, monkeypatch):
     # The fake services stand in for the elevation image service (the S3 files reader has its own test).
     monkeypatch.setattr("deerscout.analyses.DEM_SOURCE", "imageserver")
     monkeypatch.setattr("deerscout.analyses.DEM_RES_M", 6.0)
+    # The real abundance file isn't used here (so results don't depend on today's date); tests
+    # that need abundance numbers patch in their own.
+    monkeypatch.setattr(build_mod, "load_abundance", lambda path=None: {})
 
     def _run(region=COOS, default_out=False, today=None, **kw):
         out = build_mod.OUTPUT_DIR / region.slug if default_out else tmp_path / "out"

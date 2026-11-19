@@ -65,3 +65,47 @@ def test_no_abundance_means_the_factor_is_skipped():
     cfg = load_config(DATA_DIR / "scoring.yaml")
     r = factors.abundance_factor({}, cfg)
     assert r.value is None
+
+
+# ---------------------------------------------------------------- the real numbers (2025 summary)
+
+REAL = yaml.safe_load((DATA_DIR / "abundance.yaml").read_text())
+
+
+def test_real_file_covers_every_wmu_and_cites_the_report():
+    regs = yaml.safe_load((DATA_DIR / "regulations" / "nh-deer-2026.yaml").read_text())
+    units = {u for s in regs["seasons"] for u in s["units"]}
+    assert {r["wmu"] for r in REAL["wmus"]} == units
+    src = REAL["source"]
+    assert src["title"] == "2025 New Hampshire Wildlife Harvest Summary"
+    assert src["url"].startswith("https://www.wildlife.nh.gov/") and src["page"] and src["retrieved"]
+
+
+def test_real_values_recompute_from_the_reports_own_numbers():
+    habitat_total = 0.0
+    for r in REAL["wmus"]:
+        assert r["two_year_average"] == (r["adult_bucks_2024"] + r["adult_bucks_2025"]) / 2, r["wmu"]
+        habitat = r["total_kill_2025"] / r["total_kpsm_2025"]
+        habitat_total += habitat
+        assert r["habitat_sq_mi"] == round(habitat), r["wmu"]
+        assert r["buck_kill_per_sqmi"] == pytest.approx(r["two_year_average"] / habitat, abs=0.006), r["wmu"]
+    # The units' habitat adds up to the report's statewide figure (14,387 deer / 1.81 per sq mi).
+    assert habitat_total == pytest.approx(14387 / 1.81, rel=0.01)
+
+
+def test_real_values_match_fish_and_game_current_levels_and_spot_values():
+    by = {r["wmu"]: r for r in REAL["wmus"]}
+    # "Current level" (2-year average adult buck kill), report p. 6
+    for wmu, level in {"A": 366, "E": 112, "K": 770, "L": 764, "M": 963, "J2": 1069, "D2E": 24}.items():
+        assert round(by[wmu]["two_year_average"] + 0.001) == level, wmu
+    assert by["A"]["buck_kill_per_sqmi"] == 0.66
+    assert by["K"]["buck_kill_per_sqmi"] == 1.38
+    assert by["M"]["buck_kill_per_sqmi"] == 2.14
+
+
+def test_real_file_loads_for_scoring():
+    ab = build.load_abundance()
+    assert ab["wmu:k"]["buck_kill_per_sqmi"] == 1.38
+    assert ab["wmu:k"]["period"] == "2024-2025 average"
+    assert ab["wmu:k"]["source"]["title"] == "2025 New Hampshire Wildlife Harvest Summary"
+    assert not any(k.startswith("town:") for k in ab)

@@ -419,9 +419,9 @@ function AbundanceSection({ unit }: { unit: Unit }) {
         {a ? (
           <>
             <p>
-              <strong>{a.buckKillPerSqMi.toFixed(2)}</strong> adult bucks taken per square mile
+              <strong>{a.buckKillPerSqMi.toFixed(2)}</strong> adult bucks taken per square mile of deer habitat
               {a.where ? ` in ${a.where}` : ""}
-              {a.year ? ` (${a.year} season)` : ""}.
+              {a.period ? ` (${a.period})` : a.year ? ` (${a.year} season)` : ""}.
             </p>
             <p className="mt-1 text-xs text-muted">Fish and Game&apos;s main index of how many deer an area holds. A regional average, not a count for this block.</p>
             {a.source?.title && (

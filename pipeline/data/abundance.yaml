@@ -1,0 +1,189 @@
+# Deer abundance: adult (antlered) buck kill per square mile of deer habitat, by Wildlife
+# Management Unit. Fish and Game calls adult buck kill "New Hampshire's most consistent index of
+# total deer population" and judges each unit on the 2-year average, so that's what is used here.
+#
+# From the 2025 New Hampshire Wildlife Harvest Summary (NH Fish and Game, published 2026-05-18):
+#   adult_bucks_2024 / adult_bucks_2025  - "Adult (antlered) buck kill by WMU (1965-2025)", report p. 10
+#   two_year_average                      - matches "Current level" in "Deer population objectives", p. 6
+#   total_kill_2025 / total_kpsm_2025     - "Total kill by season and WMU during 2025", p. 9; Fish and
+#                                           Game's kill per square mile there uses its estimate of
+#                                           square miles of deer habitat in each unit
+#   habitat_sq_mi                         - total_kill_2025 / total_kpsm_2025 (computed here; the 20
+#                                           units add up to the report's statewide 7,949 sq mi within rounding)
+#   buck_kill_per_sqmi                    - two_year_average / (total_kill_2025 / total_kpsm_2025)
+# The report also gives total deer kill per square mile by town, but that counts antlerless deer
+# too, so towns aren't used. A test (test_abundance.py) recomputes every value from the inputs.
+#
+# Coos holds this back until 2026-12-09 (Region.abundance_from in config.py).
+
+year: 2025
+period: "2024-2025 average"
+source:
+  title: "2025 New Hampshire Wildlife Harvest Summary"
+  url: https://www.wildlife.nh.gov/hunting-nh/hunting-reports-harvest-summaries
+  file: https://www.wildlife.nh.gov/sites/g/files/ehbemt746/files/documents/harvest-summary.pdf
+  publisher: NH Fish and Game Department
+  published: "2026-05-18"
+  page: "report pp. 6, 9 and 10"
+  retrieved: "2026-11-18"
+wmus:
+  - wmu: A
+    adult_bucks_2024: 336
+    adult_bucks_2025: 396
+    two_year_average: 366
+    total_kill_2025: 508
+    total_kpsm_2025: 0.91
+    habitat_sq_mi: 558
+    buck_kill_per_sqmi: 0.66
+  - wmu: B
+    adult_bucks_2024: 129
+    adult_bucks_2025: 125
+    two_year_average: 127
+    total_kill_2025: 161
+    total_kpsm_2025: 0.49
+    habitat_sq_mi: 329
+    buck_kill_per_sqmi: 0.39
+  - wmu: C1
+    adult_bucks_2024: 65
+    adult_bucks_2025: 78
+    two_year_average: 71.5
+    total_kill_2025: 121
+    total_kpsm_2025: 0.62
+    habitat_sq_mi: 195
+    buck_kill_per_sqmi: 0.37
+  - wmu: C2
+    adult_bucks_2024: 94
+    adult_bucks_2025: 117
+    two_year_average: 105.5
+    total_kill_2025: 160
+    total_kpsm_2025: 0.69
+    habitat_sq_mi: 232
+    buck_kill_per_sqmi: 0.45
+  - wmu: D1
+    adult_bucks_2024: 137
+    adult_bucks_2025: 181
+    two_year_average: 159
+    total_kill_2025: 238
+    total_kpsm_2025: 1.1
+    habitat_sq_mi: 216
+    buck_kill_per_sqmi: 0.73
+  - wmu: D2E
+    adult_bucks_2024: 24
+    adult_bucks_2025: 23
+    two_year_average: 23.5
+    total_kill_2025: 24
+    total_kpsm_2025: 0.23
+    habitat_sq_mi: 104
+    buck_kill_per_sqmi: 0.23
+  - wmu: D2W
+    adult_bucks_2024: 536
+    adult_bucks_2025: 549
+    two_year_average: 542.5
+    total_kill_2025: 827
+    total_kpsm_2025: 2.44
+    habitat_sq_mi: 339
+    buck_kill_per_sqmi: 1.60
+  - wmu: E
+    adult_bucks_2024: 106
+    adult_bucks_2025: 117
+    two_year_average: 111.5
+    total_kill_2025: 135
+    total_kpsm_2025: 0.2
+    habitat_sq_mi: 675
+    buck_kill_per_sqmi: 0.17
+  - wmu: F
+    adult_bucks_2024: 147
+    adult_bucks_2025: 167
+    two_year_average: 157
+    total_kill_2025: 200
+    total_kpsm_2025: 0.44
+    habitat_sq_mi: 455
+    buck_kill_per_sqmi: 0.35
+  - wmu: G1
+    adult_bucks_2024: 494
+    adult_bucks_2025: 501
+    two_year_average: 497.5
+    total_kill_2025: 738
+    total_kpsm_2025: 1.9
+    habitat_sq_mi: 388
+    buck_kill_per_sqmi: 1.28
+  - wmu: G2
+    adult_bucks_2024: 120
+    adult_bucks_2025: 109
+    two_year_average: 114.5
+    total_kill_2025: 163
+    total_kpsm_2025: 0.75
+    habitat_sq_mi: 217
+    buck_kill_per_sqmi: 0.53
+  - wmu: H1
+    adult_bucks_2024: 564
+    adult_bucks_2025: 598
+    two_year_average: 581
+    total_kill_2025: 908
+    total_kpsm_2025: 2.45
+    habitat_sq_mi: 371
+    buck_kill_per_sqmi: 1.57
+  - wmu: H2
+    adult_bucks_2024: 792
+    adult_bucks_2025: 833
+    two_year_average: 812.5
+    total_kill_2025: 1262
+    total_kpsm_2025: 1.98
+    habitat_sq_mi: 637
+    buck_kill_per_sqmi: 1.27
+  - wmu: I1
+    adult_bucks_2024: 298
+    adult_bucks_2025: 308
+    two_year_average: 303
+    total_kill_2025: 499
+    total_kpsm_2025: 1.56
+    habitat_sq_mi: 320
+    buck_kill_per_sqmi: 0.95
+  - wmu: I2
+    adult_bucks_2024: 263
+    adult_bucks_2025: 330
+    two_year_average: 296.5
+    total_kill_2025: 438
+    total_kpsm_2025: 1.26
+    habitat_sq_mi: 348
+    buck_kill_per_sqmi: 0.85
+  - wmu: J1
+    adult_bucks_2024: 455
+    adult_bucks_2025: 476
+    two_year_average: 465.5
+    total_kill_2025: 666
+    total_kpsm_2025: 1.53
+    habitat_sq_mi: 435
+    buck_kill_per_sqmi: 1.07
+  - wmu: J2
+    adult_bucks_2024: 969
+    adult_bucks_2025: 1169
+    two_year_average: 1069
+    total_kill_2025: 2113
+    total_kpsm_2025: 2.93
+    habitat_sq_mi: 721
+    buck_kill_per_sqmi: 1.48
+  - wmu: K
+    adult_bucks_2024: 746
+    adult_bucks_2025: 793
+    two_year_average: 769.5
+    total_kill_2025: 1394
+    total_kpsm_2025: 2.5
+    habitat_sq_mi: 558
+    buck_kill_per_sqmi: 1.38
+  - wmu: L
+    adult_bucks_2024: 749
+    adult_bucks_2025: 779
+    two_year_average: 764
+    total_kill_2025: 1610
+    total_kpsm_2025: 4.16
+    habitat_sq_mi: 387
+    buck_kill_per_sqmi: 1.97
+  - wmu: M
+    adult_bucks_2024: 901
+    adult_bucks_2025: 1024
+    two_year_average: 962.5
+    total_kill_2025: 2222
+    total_kpsm_2025: 4.94
+    habitat_sq_mi: 450
+    buck_kill_per_sqmi: 2.14

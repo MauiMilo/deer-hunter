@@ -69,14 +69,17 @@ a mile get walk-in directions from them. On the phone, a waypoint saved as "Park
 Map tiles can be saved on the phone for use with no signal (Settings → Offline maps, or **Save map** under a property's map). USGS says its map services and data are free and in the public domain with no restrictions ([USGS FAQ](https://usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map)); saves are capped at 4,000 tiles per area to stay light on their servers.
 | MapLibre demo glyphs (`demotiles.maplibre.org`) | Fonts for map labels | Open fonts; third-party server (could be self-hosted later) |
 
+## Deer abundance
+
+| Source | What we use | Access | Data date | Notes |
+|---|---|---|---|---|
+| **NH Fish and Game, 2025 New Hampshire Wildlife Harvest Summary** (www.wildlife.nh.gov/hunting-nh/hunting-reports-harvest-summaries) | Adult (antlered) buck kill per square mile of deer habitat, by WMU, 2024-2025 average: the "regional deer abundance" factor (10% of the property score by default) | PDF downloaded by hand on 2026-11-18 (the site refuses automated downloads) | Published 2026-05-18 | Adult buck kill by WMU (report p. 10), 2-year average (matches "current level", p. 6), divided by Fish and Game's deer-habitat square miles for each unit (total kill / total kill per square mile, p. 9). Every input is in `pipeline/data/abundance.yaml` and a test recomputes the values. Ranges from 0.17 (WMU E) to 2.14 (WMU M); WMU A is 0.66, K 1.38, L 1.97. A regional figure: it says nothing about a particular block. Coos holds it back until 2026-12-09 (`Region.abundance_from`). |
+
 ## Not used (yet)
 
-- **Adult buck kill per square mile by WMU or town** (NH Fish and Game, 2025 Wildlife Harvest
-  Summary, www.wildlife.nh.gov/hunting-nh/hunting-reports-harvest-summaries): Fish and Game's
-  site refuses automated downloads (rechecked 2026-11-18; the 2026-27 digest only points to the
-  summary). The "regional deer abundance" factor is skipped until `pipeline/data/abundance.yaml`
-  is filled in from it, with the source, page and date. Coos holds it back until 2026-12-09
-  (`Region.abundance_from`) so rankings don't change mid-season.
+- **Deer abundance by town** (total deer kill per square mile by town, 2025 Wildlife Harvest
+  Summary): not used, because it counts antlerless deer too, so it depends on each unit's
+  antlerless seasons. The WMU adult buck figure below is used instead.
 - **In-season county deer kill** (Fish and Game tally "as of 11/15/26", seen as a photo in a
   social-media post, 2026-11-18): not used. It counts all deer by county partway through the
   season, not adult bucks per square mile by WMU or town, and it isn't a published report. For

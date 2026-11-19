@@ -43,6 +43,9 @@ check the NH Hunting Digest, posted signs and property rules.
   that suit each one and the direction to walk in from. Each spot is then re-checked against 1-meter
   lidar (flat shelf? real saddle? water?) and labeled with what the check found. Spots on pond
   shores are dropped.
+- **Weighs deer numbers**: Fish and Game's adult buck kill per square mile of deer habitat for each
+  WMU (2024-2025 average, 2025 Wildlife Harvest Summary) is part of each block's score and shown on
+  the property screen with its source. Coos starts using it on Dec 9, 2026, after archery closes.
 - **Plans the day** with a 7-day forecast (Open-Meteo): conditions score, safety warnings, wind check
   for each spot and for the walk in, and five seasons of wind history as wind roses.
 - **Keeps a field log**: GPS waypoints, sightings by hour, notes, GPX export, and import of your own
@@ -54,11 +57,8 @@ check the NH Hunting Digest, posted signs and property rules.
 
 ## What's not done yet
 
-- Regional deer abundance (Fish and Game adult buck kill per square mile): the app is ready for it
-  (by town or WMU, shown on the property screen with its source), but the official 2025 Wildlife
-  Harvest Summary has to be downloaded by hand because Fish and Game's site refuses automated
-  downloads. Once loaded, the Concord area uses it right away; Coos waits until Dec 9, 2026 so its
-  rankings don't change during the Coos seasons.
+- Deer abundance in Coos scores: loaded, but Coos holds it back until Dec 9, 2026 so its rankings
+  don't change during the Coos seasons. The first weekly refresh after that adds it.
 - Real drive times (distances are straight-line with a rough drive estimate).
 - Hopkinton-Everett's limits (closed areas, no hunting at the developed recreation areas) come from
   secondary sources; the Corps' own page couldn't be read automatically. Call the office.
