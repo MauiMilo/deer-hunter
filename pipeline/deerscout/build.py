@@ -14,7 +14,7 @@ import json
 import logging
 import math
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,7 @@ import geopandas as gpd
 import pandas as pd
 import yaml
 
-from . import __version__, analyses, factors, granit, tiger, units, wmu
+from . import __version__, analyses, factors, granit, tiger, units, wmu, zones
 from .access import AccessRules
 from .arcgis import FetchResult, query_geojson
 from .config import (
@@ -123,16 +123,46 @@ def _bbox(geom) -> list[float]:
     return [round(v, 5) for v in geom.bounds]
 
 
-def load_abundance() -> dict[str, dict[str, Any]]:
-    """WMU-level harvest indices (data/abundance.yaml), if that file has been filled in from a source."""
-    path = DATA_DIR / "abundance.yaml"
+def load_abundance(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Adult buck kill per square mile (data/abundance.yaml), if it has been filled in from a source.
+
+    Returns {"wmu:<code>": row, "town:<name>": row}. Rows carry the year and the source so the app
+    can show where the number came from. A file without a source is refused.
+    """
+    path = path or DATA_DIR / "abundance.yaml"
     if not path.exists():
         return {}
     doc = yaml.safe_load(path.read_text()) or {}
-    out = {}
-    for row in doc.get("wmus") or []:
-        out[str(row["wmu"])] = {**row, "source": doc.get("source")}
+    src = doc.get("source") or {}
+    if (doc.get("wmus") or doc.get("towns")) and not (src.get("title") and src.get("retrieved")):
+        raise ValueError(f"{path.name}: abundance numbers need a source with a title and retrieved date")
+    out: dict[str, dict[str, Any]] = {}
+    for kind, key in (("wmus", "wmu"), ("towns", "town")):
+        for row in doc.get(kind) or []:
+            v = row.get("buck_kill_per_sqmi")
+            if not isinstance(v, (int, float)) or v < 0:
+                raise ValueError(f"{path.name}: bad buck_kill_per_sqmi in {row}")
+            name = str(row[key]).strip()
+            out[f"{key}:{name.lower()}"] = {
+                **row,
+                key: name,
+                "level": key,
+                "year": row.get("year", doc.get("year")),
+                "period": row.get("period", doc.get("period")),
+                "source": src,
+            }
     return out
+
+
+def abundance_for(abundance: dict[str, dict[str, Any]], town: str | None, wmu_units: list[str]) -> dict[str, Any] | None:
+    """The most local figure for a block: its town if the report gives towns, else its WMU.
+
+    A block straddling a WMU line gets the lower of its units' figures (the cautious choice).
+    """
+    if town and f"town:{town.lower()}" in abundance:
+        return abundance[f"town:{town.lower()}"]
+    rows = [abundance[f"wmu:{u.lower()}"] for u in wmu_units if f"wmu:{u.lower()}" in abundance]
+    return min(rows, key=lambda r: r["buck_kill_per_sqmi"]) if rows else None
 
 
 def load_parking() -> list[dict[str, Any]]:
@@ -149,33 +179,62 @@ def load_parking() -> list[dict[str, Any]]:
     return out
 
 
+def parking_in(region: Region, parking: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Only the parking areas inside the region's search rectangle (parking.yaml is statewide)."""
+    w, s, e, n = region.envelope
+    return [p for p in parking if w <= p["lon"] <= e and s <= p["lat"] <= n]
+
+
+def abundance_held(region: Region, today: date) -> bool:
+    """True while a region's scores are kept free of the deer-abundance factor (see Region.abundance_from)."""
+    return bool(region.abundance_from) and today < date.fromisoformat(region.abundance_from)
+
+
 def build(
     region: Region,
     *,
     session: Session | None = None,
-    out_dir: Path = OUTPUT_DIR,
+    out_dir: Path | None = None,
     skip: set[str] = frozenset(),
+    today: date | None = None,
 ) -> dict[str, Any]:
     session = session or make_session()
+    out_dir = out_dir or OUTPUT_DIR / region.slug  # each region has its own folder
     factors.install()
     started = _now()
     manifest: dict[str, Any] = {
         "pipeline_version": __version__,
-        "region": {"slug": region.slug, "name": region.name, "focus_towns": list(region.focus_towns)},
+        "region": {
+            "slug": region.slug,
+            "name": region.name,
+            "short_name": region.short_name,
+            "focus_towns": list(region.focus_towns),
+            "counties": list(region.counties),
+            **({"center": list(region.center), "radius_miles": region.radius_miles} if region.by_radius else {}),
+        },
         "started_at": started,
         "sources": [],
         "warnings": [],
         "limitations": [],
     }
 
-    # 1. Region boundary (optional: fall back to the search rectangle)
+    # 1. Region boundary. A one-county region falls back to the search rectangle if the county
+    #    outline fails; a towns-within-a-radius region can't be drawn without the towns, so it stops.
     county = None
-    try:
-        county, res = tiger.county(session, region.county_geoid)
-        _record(manifest, tiger.SOURCE_COUNTY, "ok", res)
-    except SourceError as e:
-        _record(manifest, tiger.SOURCE_COUNTY, "failed", error=e.message)
-        manifest["warnings"].append("County boundary unavailable; properties were not clipped to the county line.")
+    towns_gdf = None
+    if region.by_radius:
+        towns_gdf, res = tiger.towns_within(session, region)
+        _record(manifest, tiger.SOURCE_TOWNS, "ok", res)
+        county = towns_gdf
+        manifest["region"]["towns"] = [{"town": t, "miles": m} for t, m in zip(towns_gdf["town"], towns_gdf["miles"])]
+        log.info("region: %d towns within %s miles", len(towns_gdf), region.radius_miles)
+    else:
+        try:
+            county, res = tiger.county(session, region.county_geoid)
+            _record(manifest, tiger.SOURCE_COUNTY, "ok", res)
+        except SourceError as e:
+            _record(manifest, tiger.SOURCE_COUNTY, "failed", error=e.message)
+            manifest["warnings"].append("County boundary unavailable; properties were not clipped to the county line.")
 
     # 2. Conservation and public lands (required)
     tracts, res = fetch_conservation(session, region)
@@ -187,14 +246,14 @@ def build(
     tracts = clip_to_region(tracts, county)
     log.info("tracts in region: %d", len(tracts))
 
-    # 3. Towns (optional: needed for WMU lookup)
-    towns_gdf = None
-    try:
-        towns_gdf, res = tiger.towns(session, region.county_geoid)
-        _record(manifest, tiger.SOURCE_TOWNS, "ok", res)
-    except SourceError as e:
-        _record(manifest, tiger.SOURCE_TOWNS, "failed", error=e.message)
-        manifest["warnings"].append("Town boundaries unavailable; town names are missing and the WMU fallback can't be used.")
+    # 3. Towns (optional: needed for WMU lookup). A radius region already has them from step 1.
+    if towns_gdf is None:
+        try:
+            towns_gdf, res = tiger.towns(session, region.county_geoid)
+            _record(manifest, tiger.SOURCE_TOWNS, "ok", res)
+        except SourceError as e:
+            _record(manifest, tiger.SOURCE_TOWNS, "failed", error=e.message)
+            manifest["warnings"].append("Town boundaries unavailable; town names are missing and the WMU fallback can't be used.")
 
     # 3b. Official WMU map (optional: falls back to town names)
     wmu_gdf = None
@@ -239,7 +298,7 @@ def build(
 
     # 6. Habitat, access, terrain and wind analyses (each optional)
     out_dir.mkdir(parents=True, exist_ok=True)
-    parking = load_parking()
+    parking = parking_in(region, load_parking())
     ctx = analyses.Context(
         session=session,
         units_ea=unit_gdf[["id", "property_id", "geometry"]].to_crs(EQUAL_AREA),
@@ -253,10 +312,17 @@ def build(
     )
     analyses.run_all(ctx, skip=skip)
     abundance = load_abundance()
+    held = bool(abundance) and abundance_held(region, today or datetime.now(timezone.utc).date())
+    if held:
+        abundance = {}
+
+    # Method-limited zones (e.g. Bear Brook's bow-only refuge east of Podunk Road).
+    region_zones = zones.in_envelope(zones.load(DATA_DIR / "zones", known_sources=set(rules.sources)), region.envelope)
+    units_ea = unit_gdf.to_crs(EQUAL_AREA).geometry
 
     prop_by_id = props.set_index("id")
     unit_records = []
-    for _, u in unit_gdf.iterrows():
+    for idx, u in unit_gdf.iterrows():
         p = prop_by_id.loc[u["property_id"]]
         signals = {
             "acres": float(u["acres"]),
@@ -264,13 +330,15 @@ def build(
             "boundary_accuracy_code": _clean(p.get("boundary_accuracy_code")),
             **ctx.signals.get(u["id"], {}),
         }
-        unit_wmu = u["wmu"]["units"]
-        if len(unit_wmu) >= 1 and unit_wmu[0] in abundance:
-            signals["abundance"] = abundance[unit_wmu[0]]
+        ab = abundance_for(abundance, u["town"], list(u["wmu"]["units"]))
+        if ab:
+            signals["abundance"] = ab
         score = score_unit(signals, cfg).to_dict()
         lon, lat = representative_lonlat(u.geometry)
+        limit = zones.limit_for(units_ea.loc[idx], region_zones, rules._cite) if region_zones else None
         unit_records.append(
             {
+                **({"method_limit": limit} if limit else {}),
                 "id": u["id"],
                 "property_id": u["property_id"],
                 "label": u["label"],
@@ -382,7 +450,12 @@ def build(
             },
         }
     )
-    if not abundance:
+    if held:
+        manifest["limitations"].append(
+            f"Regional deer abundance is loaded but not used in this region's scores until {region.abundance_from}, "
+            "so rankings don't change in the middle of the season."
+        )
+    elif not abundance:
         manifest["limitations"].append("Regional deer abundance (harvest per square mile) isn't loaded yet, so that factor is skipped.")
     manifest["limitations"] += [
         "Overlapping records (for example, a state forest and an easement on the same ground) are listed separately; see each property's overlaps.",
@@ -433,6 +506,9 @@ def build(
             ],
         },
     )
+    if region_zones:
+        _write(out_dir / "zones.geojson", zones.to_geojson(region_zones, rules._cite))
+        manifest["zones"] = [{"id": z.id, "name": z.name, "methods": z.methods} for z in region_zones]
     _write(out_dir / "manifest.json", _clean(manifest))
     return manifest
 
@@ -445,7 +521,7 @@ def _write(path: Path, obj: Any) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--region", default="coos", choices=sorted(REGIONS))
-    ap.add_argument("--out", type=Path, default=OUTPUT_DIR)
+    ap.add_argument("--out", type=Path, default=None, help="output folder (default: web/public/data/<region>)")
     ap.add_argument("--skip", default="", help="comma-separated analyses to skip: landcover,roads,terrain,wind")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

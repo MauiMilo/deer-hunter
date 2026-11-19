@@ -12,14 +12,14 @@ Checked: 2026-10-08; hunting-permission and crossbow sources rechecked 2026-10-0
 | Source | What we use | Access | Data date | Updates | License | Resolution / accuracy | Notes |
 |---|---|---|---|---|---|---|---|
 | **GRANIT Conservation/Public Lands** (UNH) | Property polygons, owner/agency, protection type, public-access code, boundary accuracy | ArcGIS REST, `nhgeodata.unh.edu/.../EC/Conservation/MapServer/1`, GeoJSON, paged | Published 2026-06-30 | Twice a year | Public; metadata says **"Not for legal use"** | Tract-level; each tract carries its own accuracy code (survey → poor) | 930 records intersect the Coos search rectangle; 719 tracts after clipping to the county. Code tables come from the July 2022 coding standard (`ftp.granit.unh.edu/d-cons/ConservationLandsStandard.pdf`). The `ACCESS` field is general public access, **not** hunting permission (the Connecticut Lakes Headwaters is coded "unknown"). |
-| **Census TIGERweb** counties and county subdivisions | Coos County outline (GEOID 33007) and town boundaries | ArcGIS REST, `tigerweb.geo.census.gov` | Current TIGER vintage | Yearly | Public domain | Census cartographic accuracy | Used to clip properties to the county and name towns. |
+| **Census TIGERweb** counties and county subdivisions | Coos County outline (GEOID 33007) and town boundaries; for the Concord area, towns in six counties with their internal points | ArcGIS REST, `tigerweb.geo.census.gov` | Current TIGER vintage | Yearly | Public domain | Census cartographic accuracy | Used to clip properties to the region and name towns. The Concord area is every town whose Census internal point (INTPTLAT/INTPTLON) is within 30 straight-line miles of the State House (43.2067 N, 71.5381 W): 82 towns on 2026-11-18. That stands in for "about an hour's drive"; there's no routing service. |
 | **NH Fish and Game Wildlife Management Units** | Deer WMU for each block | ArcGIS Feature Service `services8.arcgis.com/hg1B9Egwk1I5p300/.../WMU/FeatureServer/0` | Last edited 2026-08-26 | As rules change | NH Fish and Game (©2016 on layer) | Unit boundaries follow roads and rivers | WMU A is drawn as A1/A2; per the layer's description, rules for "A" cover both. Blocks crossing a line are flagged "split" and the app uses the stricter season. Fallback if the layer fails: a town table built from the digest's written boundaries. |
 
 ## Hunting rules
 
 | Source | Used for | Date |
 |---|---|---|
-| 2026-27 NH Hunting Digest (eRegulations) — deer seasons, regulations, WMUs | Season dates by method and WMU, legal hours, crossbow and bag rules | Last updated 2026-08-27. The online season table had a broken layout and was reconstructed. On 2026-10-09 a separate check matched every Coos date against the online table and the season formula in rule Fis 301.03. Crossbow exceptions (age 68+, Disabled Crossbow Permit, Youth Deer Weekend, firearms and muzzleloader seasons) come from the digest PDF (`eregulations.com/assets/docs/guides/26NHHD_LR2.pdf`, pp. 7-8). **Not yet checked against the printed digest** (the app says so). The Justia copy of Fis 301.03 is out of date on crossbows; don't use it. |
+| 2026-27 NH Hunting Digest (eRegulations) — deer seasons, regulations, WMUs | Season dates by method and WMU, legal hours, crossbow and bag rules | Last updated 2026-08-27. The online season table had a broken layout and was reconstructed. On 2026-10-09 a separate check matched every Coos date against the online table and the season formula in rule Fis 301.03. Crossbow exceptions (age 68+, Disabled Crossbow Permit, Youth Deer Weekend, firearms and muzzleloader seasons) come from the digest PDF (`eregulations.com/assets/docs/guides/26NHHD_LR2.pdf`, pp. 7-8). **Checked 2026-11-18:** every season for every WMU (80 unit/method combinations) matches the "2026 Deer Season Dates" chart on p. 20 of the digest PDF (the print layout); a test keeps them in step. NH Fish and Game's news release of 2026-11-05 confirms firearms season Nov 11 - Dec 6 (Nov 29 in WMU A). The Justia copy of Fis 301.03 is out of date on crossbows; don't use it. |
 | NH Admin. Rules **Res 7301.10** (DNCR parks and forests) | Hunting allowed on state parks/forests except a named list (none in Coos); 300 ft rule near occupied developed areas; tree stands | Retrieved 2026-10-08 (via Justia) |
 | NH Admin. Rules **Chapter Fis 900** (Fish and Game lands), **Fis 902.02**, **Fis 903.07** | Fish and Game lands in Table 900.01 open to hunting; Connecticut Lakes Natural Area limits (no baiting, no camping, vehicles) | Chapter last amended 2017-02-24; retrieved 2026-10-08. Fish and Game proposed re-adopting Fis 900 (public hearing Dec 1, 2025). The proposal replaces Table 900.01 with an online list and renumbers some sections; whether it was adopted **couldn't be confirmed**, so the section numbers cited here may be out of date. |
 | NH Parks — Connecticut Lakes Headwaters forest rules sign | Hunting permitted with restrictions on the Headwaters easement land | No date on sign; retrieved 2026-10-08 |
@@ -28,7 +28,10 @@ Checked: 2026-10-08; hunting-permission and crossbow sources rechecked 2026-10-0
 | USFWS — Lake Umbagog NWR Hunting | Deer hunting allowed; stand, baiting and vehicle rules | No date; retrieved 2026-10-08 |
 | Dartmouth — Second College Grant hunting brochure | Public hunting allowed; no baiting; shooting distances; report deer at the gate | **Printed 2012**; the app tells you to call the College Forester |
 | Dartmouth — Second College Grant web page | Vehicle passes only for Dartmouth-affiliated visitors, none Oct 1 - Nov 28; walk-in welcome any time | Retrieved 2026-10-09; doesn't mention hunting |
+| NH Admin. Rules Res 7301.10(c), RSA 212:14, digest deer page | Bear Brook State Park: the game refuge east of Podunk Road is bow and arrow only, archery license required. Drawn as a zone in `pipeline/data/zones/` from the GRANIT park outline and the NH DOT Podunk Road centerline (road extended straight to the park edge where it ends inside the park); the refuge's exact edge isn't published as a map layer, so the map says "approx. edge" | Rule text via search snippet and Justia (Justia blocks automated reading); RSA and digest page read 2026-11-18 |
+| US Army Corps — Corps Lakes, Hopkinton-Everett Lake | Hunting listed among the project's recreation; office (603) 746-3601 | Read 2026-11-18. The New England District's own page refused automated requests, so closed areas, the recreation-area ban and stand/baiting rules rest on secondary sources (trailfinder.info, outdoorsy.com) and are **not verified** |
 | NH Fish and Game — Hunting on State Lands FAQs, Where to Hunt | State lands closed to hunting (all DNCR state historic sites, Pondicherry Wildlife Refuge in Jefferson, and sites outside Coos); compact-zone rule; LCIP easements | No date; FAQ retrieved 2026-10-09 |
+| (note) State historic site names in GRANIT | GRANIT spells them several ways ("Historic Site", "Historical Site", "Hist. Site"); all three are matched, so Frost Farm (Derry) and the Pierce Homestead (Hillsborough) are closed like the Daniel Webster Birthplace. Found in the first Concord-area build, 2026-11-18 | No Coos property is affected |
 | NH State Parks — Weeks State Park page | The park includes the John Wingate Weeks Historic Site, so it's left "unknown" instead of verified | Retrieved 2026-10-09 |
 | USFWS — Silvio O. Conte NFWR Hunting | Pondicherry Division "supports hunting for white-tailed deer", but not all parts are open; closed areas not found, so it stays "unknown" | Retrieved 2026-10-09. The refuge's NH information sheet couldn't be fetched. |
 
@@ -66,11 +69,22 @@ a mile get walk-in directions from them. On the phone, a waypoint saved as "Park
 Map tiles can be saved on the phone for use with no signal (Settings → Offline maps, or **Save map** under a property's map). USGS says its map services and data are free and in the public domain with no restrictions ([USGS FAQ](https://usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map)); saves are capped at 4,000 tiles per area to stay light on their servers.
 | MapLibre demo glyphs (`demotiles.maplibre.org`) | Fonts for map labels | Open fonts; third-party server (could be self-hosted later) |
 
+## Deer abundance
+
+| Source | What we use | Access | Data date | Notes |
+|---|---|---|---|---|
+| **NH Fish and Game, 2025 New Hampshire Wildlife Harvest Summary** (www.wildlife.nh.gov/hunting-nh/hunting-reports-harvest-summaries) | Adult (antlered) buck kill per square mile of deer habitat, by WMU, 2024-2025 average: the "regional deer abundance" factor (10% of the property score by default) | PDF downloaded by hand on 2026-11-18 (the site refuses automated downloads) | Published 2026-05-18 | Adult buck kill by WMU (report p. 10), 2-year average (matches "current level", p. 6), divided by Fish and Game's deer-habitat square miles for each unit (total kill / total kill per square mile, p. 9). Every input is in `pipeline/data/abundance.yaml` and a test recomputes the values. Ranges from 0.17 (WMU E) to 2.14 (WMU M); WMU A is 0.66, K 1.38, L 1.97. A regional figure: it says nothing about a particular block. Coos holds it back until 2026-12-09 (`Region.abundance_from`). |
+
 ## Not used (yet)
 
-- **Deer harvest per square mile by WMU** (Fish and Game deer assessment / harvest summary): the
-  official PDF couldn't be downloaded from here or from GitHub. The "regional deer abundance"
-  factor is skipped until `pipeline/data/abundance.yaml` is filled in from an official source.
+- **Deer abundance by town** (total deer kill per square mile by town, 2025 Wildlife Harvest
+  Summary): not used, because it counts antlerless deer too, so it depends on each unit's
+  antlerless seasons. The WMU adult buck figure below is used instead.
+- **In-season county deer kill** (Fish and Game tally "as of 11/15/26", seen as a photo in a
+  social-media post, 2026-11-18): not used. It counts all deer by county partway through the
+  season, not adult bucks per square mile by WMU or town, and it isn't a published report. For
+  the record, it showed 2026 vs 2025 at the same date: Coos 453 vs 618 (-27%), Merrimack 816 vs
+  999 (-18%), statewide 9,080 vs 10,002 (-9%).
 - **USDA Cropland Data Layer, USFS forest type maps, NH Wildlife Action Plan habitat map**: candidates
   for better forest-type and mast detail; not wired in.
 - **OnX or other proprietary maps**: not used. User-owned GPX/KML/GeoJSON import is a later phase.

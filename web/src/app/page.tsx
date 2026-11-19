@@ -6,12 +6,13 @@ import { useData } from "@/components/DataProvider";
 import { conditionsAt, forecastFor, useForecast } from "@/components/useForecast";
 import { useLocation } from "@/components/useLocation";
 import { useSettings } from "@/components/useSettings";
+import { homeFor } from "@/lib/regions";
 import { FitBadge } from "@/components/spot-ui";
 import { Card, Chip, Notice, PageHeader, ScorePill, SectionTitle, StatusBadge, WindArrow } from "@/components/ui";
 import type { Window } from "@/lib/conditions";
 import { addDays, labelDay, monthDay, nextSaturday, ymdInTz } from "@/lib/dates";
 import { bestPerProperty, rank, type Ranked } from "@/lib/rank";
-import { METHOD_LABELS, nextOpening } from "@/lib/seasons";
+import { METHOD_LABELS, nextOpeningAny } from "@/lib/seasons";
 import { formatClock } from "@/lib/sun";
 import type { Method } from "@/lib/types";
 import { describeCode } from "@/lib/weather";
@@ -24,7 +25,7 @@ const WINDOWS: { key: Window; label: string }[] = [
 const METHODS: Method[] = ["archery", "muzzleloader", "firearm"];
 
 export default function HuntPage() {
-  const { catalog, regs, manifest, loading, error, spotById } = useData();
+  const { catalog, regs, manifest, loading, error, spotById, region, regions } = useData();
   const [settings, update] = useSettings();
   const { loc, locate } = useLocation();
   const today = ymdInTz(new Date());
@@ -34,8 +35,9 @@ export default function HuntPage() {
   const [showAll, setShowAll] = useState(false);
   const [everyBlock, setEveryBlock] = useState(false);
 
-  const origin: [number, number] = loc.kind === "ok" ? [loc.lon, loc.lat] : [settings.home.lon, settings.home.lat];
-  const originLabel = loc.kind === "ok" ? "your location" : settings.home.label;
+  const home = homeFor(settings, region);
+  const origin: [number, number] = loc.kind === "ok" ? [loc.lon, loc.lat] : [home.lon, home.lat];
+  const originLabel = loc.kind === "ok" ? "your location" : home.label;
 
   // Units that pass the legal-access gate; only these need forecasts.
   const candidatePoints = useMemo(() => {
@@ -69,7 +71,7 @@ export default function HuntPage() {
     if (!regs) return null;
     return conditionsAt(forecastFor(fc.byKey, origin), origin, day, settings.window, regs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regs, fc.byKey, day, settings.window, loc, settings.home]);
+  }, [regs, fc.byKey, day, settings.window, loc, home]);
 
   const list = useMemo(
     () => (result ? (everyBlock ? result.ranked.map((r) => ({ ...r, more: 0 })) : bestPerProperty(result.ranked)) : []),
@@ -89,8 +91,16 @@ export default function HuntPage() {
     <div>
       <PageHeader
         title="Where to hunt"
-        sub={catalog ? `${catalog.region.name} · data built ${new Date(catalog.generated_at).toLocaleDateString()}` : "Northern New Hampshire public land"}
+        sub={catalog ? `${catalog.region.name} · data built ${new Date(catalog.generated_at).toLocaleDateString()}` : `${region.short_name} · New Hampshire public land`}
       />
+      {regions.length > 1 && (
+        <p className="-mt-1 px-4 pb-2 text-xs text-muted">
+          Showing {region.short_name}.{" "}
+          <Link href="/settings/" className="text-info">
+            Change region
+          </Link>
+        </p>
+      )}
 
       <div className="space-y-3 px-4">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Day">
@@ -214,7 +224,11 @@ export default function HuntPage() {
             </div>
           )}
           {result.ranked.length === 0 ? (
-            <EmptyState excluded={result.excluded} nextOpen={nextOpening(regs, day, settings.method, ["A"])} method={settings.method} />
+            <EmptyState
+              excluded={result.excluded}
+              nextOpen={nextOpeningAny(regs, day, settings.method, catalog?.units.flatMap((u) => u.wmu.units) ?? [])}
+              method={settings.method}
+            />
           ) : (
             <ol className="space-y-3">
               {shown.map((r, i) => (
@@ -229,7 +243,8 @@ export default function HuntPage() {
           )}
           <p className="mt-4 px-1 text-xs text-faint">
             Hidden: {result.excluded.closed} closed for {METHOD_LABELS[settings.method].toLowerCase()} this day
-            {!settings.includeUnknown && `, ${result.excluded.unknown} with unverified permission`}, {result.excluded.prohibited} with no public access.
+            {!settings.includeUnknown && `, ${result.excluded.unknown} with unverified permission`}, {result.excluded.prohibited} with no public access
+            {result.excluded.method > 0 && `, ${result.excluded.method} where ${METHOD_LABELS[settings.method].toLowerCase()} isn't allowed (bow-only areas)`}.
           </p>
           {settings.method === "archery" && regs.method_notes.crossbow && <p className="mt-2 px-1 text-xs text-faint">{regs.method_notes.crossbow}</p>}
           {manifest && regs && !regs.verified_against_print && (
@@ -333,14 +348,22 @@ function ResultCard({ r, rankNo, day, window }: { r: Ranked & { more: number }; 
   );
 }
 
-function EmptyState({ excluded, nextOpen, method }: { excluded: { prohibited: number; unknown: number; closed: number }; nextOpen: string | null; method: Method }) {
+function EmptyState({
+  excluded,
+  nextOpen,
+  method,
+}: {
+  excluded: { prohibited: number; unknown: number; closed: number; method: number };
+  nextOpen: { date: string; units: string[] } | null;
+  method: Method;
+}) {
   return (
     <Card className="p-4 text-sm">
       <p className="font-medium">Nothing to recommend for this day.</p>
       {excluded.closed > 0 && (
         <p className="mt-1 text-muted">
           {METHOD_LABELS[method]} season is closed here on this date.
-          {nextOpen && ` It opens ${monthDay(nextOpen)} in WMU A.`}
+          {nextOpen && ` It next opens ${monthDay(nextOpen.date)} in WMU ${nextOpen.units.join(", ")}.`}
         </p>
       )}
       {excluded.unknown > 0 && (

@@ -79,7 +79,7 @@ describe("ranking", () => {
   it("never shows prohibited land and hides unknown land by default", () => {
     const out = rank({ catalog: cat, regs, ymd: "2026-10-10", method: "archery", origin: null, includeUnknown: false });
     expect(out.ranked.map((r) => r.unit.id)).toEqual(["bigopen", "open"]);
-    expect(out.excluded).toEqual({ prohibited: 1, unknown: 1, closed: 0 });
+    expect(out.excluded).toEqual({ prohibited: 1, unknown: 1, closed: 0, method: 0 });
   });
 
   it("lists research candidates after verified land", () => {

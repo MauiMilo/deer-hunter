@@ -1,7 +1,8 @@
 # Deer Scout
 
-A phone app for deciding where and when to hunt deer on public land in northern New Hampshire,
-starting with Coos County and Pittsburg. You tell it the day, morning or evening, and how you're
+A phone app for deciding where and when to hunt deer on public land in New Hampshire. It holds
+two regions side by side: **Coos County** (Pittsburg, Clarksville, Stewartstown) and the **Concord
+area** (every town within about an hour's drive of Concord). You pick the region in Settings. You tell it the day, morning or evening, and how you're
 hunting; it tells you which legal, in-season places look best, which spots inside them suit the wind,
 and shows the evidence behind every pick.
 
@@ -10,8 +11,16 @@ check the NH Hunting Digest, posted signs and property rules.
 
 ## What it does today
 
-- **Finds the land.** Pulls every conservation and public-land parcel in Coos County from NH GRANIT
-  (297 properties, 670,000+ acres), measures true acreage, and splits big properties into ~1,000-acre
+- **Holds more than one region.** Coos and the Concord area each have their own data folder and
+  their own weekly refresh. Settings → Region switches between them; each region remembers its own
+  starting point, and saved places remember which region they're in. Both regions are saved on the
+  phone for use with no signal. The Concord area is every town whose center is within 30 miles
+  (straight line) of the State House, across county lines: 82 towns in Merrimack, Hillsborough,
+  Belknap, Rockingham, Strafford and Sullivan counties, including Weare and the whole
+  Hopkinton-Everett Army Corps project.
+
+- **Finds the land.** Pulls every conservation and public-land parcel in the region from NH GRANIT
+  (Coos: 297 properties, 670,000+ acres), measures true acreage, and splits big properties into ~1,000-acre
   blocks so "go here" means a specific area.
 - **Checks permission separately from habitat.** Each property is *hunting allowed (with source and
   date)*, *no public access*, or *not verified*. Only cited sources count: state park/forest rules,
@@ -19,8 +28,12 @@ check the NH Hunting Digest, posted signs and property rules.
   Second College Grant. Places Fish and Game lists as closed (Pondicherry Wildlife Refuge, state
   historic sites) are marked off-limits. Unverified land is hidden unless you ask for research
   candidates.
-- **Knows the seasons.** Official WMU map for every block; 2026-27 seasons by method and WMU; legal
-  hours from sunrise/sunset; crossbow rules and their exceptions; flags blocks that straddle a WMU line.
+- **Knows the seasons.** Official WMU map for every block; 2026-27 seasons by method for every WMU
+  (A through M), checked against the digest's season chart; legal hours from sunrise/sunset; crossbow
+  rules and their exceptions; flags blocks that straddle a WMU line.
+- **Knows bow-only areas.** Bear Brook State Park's game refuge east of Podunk Road is bow and arrow
+  only. It's outlined on the map (edge drawn approximately), blocks in it are marked archery-only,
+  and they drop out of the picks when you choose muzzleloader or rifle.
 - **Scores habitat, pressure, terrain and access** from USGS Annual NLCD 2025 land cover (30 m, with
   forest cut since 2020 counted as fresh browse), DOT and OpenStreetMap roads, state trails, and USGS
   3DEP bare-earth elevation (10 m). Every score shows its parts, what kind of
@@ -30,6 +43,9 @@ check the NH Hunting Digest, posted signs and property rules.
   that suit each one and the direction to walk in from. Each spot is then re-checked against 1-meter
   lidar (flat shelf? real saddle? water?) and labeled with what the check found. Spots on pond
   shores are dropped.
+- **Weighs deer numbers**: Fish and Game's adult buck kill per square mile of deer habitat for each
+  WMU (2024-2025 average, 2025 Wildlife Harvest Summary) is part of each block's score and shown on
+  the property screen with its source. Coos starts using it on Dec 9, 2026, after archery closes.
 - **Plans the day** with a 7-day forecast (Open-Meteo): conditions score, safety warnings, wind check
   for each spot and for the walk in, and five seasons of wind history as wind roses.
 - **Keeps a field log**: GPS waypoints, sightings by hour, notes, GPX export, and import of your own
@@ -41,12 +57,13 @@ check the NH Hunting Digest, posted signs and property rules.
 
 ## What's not done yet
 
-- Regional deer abundance (Fish and Game buck kill per square mile): official report not yet loaded.
+- Deer abundance in Coos scores: loaded, but Coos holds it back until Dec 9, 2026 so its rankings
+  don't change during the Coos seasons. The first weekly refresh after that adds it.
 - Real drive times (distances are straight-line with a rough drive estimate).
-- Season dates match the online digest and the season formula in the rules, but haven't been
-  checked against the printed digest.
+- Hopkinton-Everett's limits (closed areas, no hunting at the developed recreation areas) come from
+  secondary sources; the Corps' own page couldn't be read automatically. Call the office.
 - Tuning scores from your own logged sits (needs a season of logs first).
-- Other counties.
+- Showing several regions' spots in one list (the app shows one region at a time).
 
 See `RESEARCH.md` for the evidence and its limits, `DATA_SOURCES.md` for every source,
 `ARCHITECTURE.md` for how it fits together.
@@ -61,20 +78,24 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-The data files in `web/public/data/` are already built and committed, so the app works immediately.
+The data files in `web/public/data/<region>/` are already built and committed, so the app works
+immediately. `web/public/data/regions.json` lists the regions.
 
 ### Rebuilding the data
 
 The pipeline downloads from state and federal servers. It runs automatically on GitHub every Monday
-and whenever the rules or pipeline change (`.github/workflows/data.yml`); you can also start it from
-the repo's **Actions → Refresh data → Run workflow**. To run it yourself:
+and whenever the rules or pipeline change (`.github/workflows/data.yml`). Each region is built in
+its own job and only replaces its own folder. To start it by hand: the repo's **Actions → Refresh
+data → Run workflow**, pick the branch, and type `all`, `coos` or `concord` in the region box. The
+data is committed to the branch you picked. To run it yourself:
 
 ```bash
 cd pipeline
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-python -m deerscout.build --region coos            # full run, ~10-30 min
-python -m deerscout.build --skip terrain,wind      # quicker partial run
+python -m deerscout.build --region coos            # full run, ~10-30 min -> web/public/data/coos/
+python -m deerscout.build --region concord         # Concord area, ~15 min -> web/public/data/concord/
+python -m deerscout.build --region coos --skip terrain,wind   # quicker partial run
 ```
 
 ### Tests
@@ -96,6 +117,19 @@ a mile get walk-in directions from it after the next data build. In the field, s
 When you confirm a property's rules (town office, posted sign, managing agency), add it to
 `pipeline/data/verifications.yaml` with what you were told, where, and the date. It overrides the
 automatic rules on the next data build.
+
+### Adding a third region
+
+1. In `pipeline/deerscout/config.py`, add a `Region`: a short name, the Census county codes to draw
+   towns from, a search rectangle, a default starting point, and either one county (no radius) or
+   a center and `radius_miles` (whole towns whose center is within that distance). Add it to
+   `REGIONS`.
+2. Run `python -m deerscout.regions` to rewrite `web/public/data/regions.json`.
+3. Seasons already cover every WMU. Add rules for any special properties to
+   `pipeline/data/access_rules.yaml`, and bow-only or other method-limited areas as GeoJSON in
+   `pipeline/data/zones/` (with sources).
+4. Run the tests, push, then **Actions → Refresh data → Run workflow** with the new region's name.
+   Its folder appears next to the others; nothing else is touched.
 
 ### Putting it on your phone (Cloudflare Pages)
 

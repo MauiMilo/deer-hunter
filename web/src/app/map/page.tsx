@@ -16,7 +16,7 @@ import { useImported } from "@/components/useImported";
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
 export default function MapPage() {
-  const { propertyById, unitById, spotById, landcover, error } = useData();
+  const { propertyById, unitById, spotById, landcover, error, region } = useData();
   const [base, setBase] = useState<BaseLayer>("topo");
   const [blocks, setBlocks] = useState(true);
   const [showSpots, setShowSpots] = useState(true);
@@ -37,6 +37,7 @@ export default function MapPage() {
   return (
     <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] top-0 mx-auto max-w-xl">
       <MapView
+        key={region.slug}
         className="h-full w-full"
         base={base}
         showBlocks={blocks}

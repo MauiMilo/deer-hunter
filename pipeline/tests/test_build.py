@@ -71,6 +71,11 @@ def make_world():
     return county, west, east, feats
 
 
+def _intpt(geom):
+    c = geom.centroid
+    return {"INTPTLAT": f"+{c.y:.7f}", "INTPTLON": f"{c.x:.7f}"}
+
+
 def clhw_center_ea(world):
     from pyproj import Transformer
     from shapely.geometry import shape
@@ -110,8 +115,8 @@ def handler_for(world, fail_towns=False, fail_wmu=False, phase2=True):
             return FakeResponse(
                 {
                     "features": [
-                        feature(west, GEOID="1", NAME="Pittsburg town", BASENAME="Pittsburg"),
-                        feature(east, GEOID="2", NAME="Colebrook town", BASENAME="Colebrook"),
+                        feature(west, GEOID="1", NAME="Pittsburg town", BASENAME="Pittsburg", **_intpt(west)),
+                        feature(east, GEOID="2", NAME="Colebrook town", BASENAME="Colebrook", **_intpt(east)),
                     ]
                 }
             )
@@ -136,10 +141,15 @@ def run(tmp_path, monkeypatch):
     # The fake services stand in for the elevation image service (the S3 files reader has its own test).
     monkeypatch.setattr("deerscout.analyses.DEM_SOURCE", "imageserver")
     monkeypatch.setattr("deerscout.analyses.DEM_RES_M", 6.0)
+    # The real abundance file isn't used here (so results don't depend on today's date); tests
+    # that need abundance numbers patch in their own.
+    monkeypatch.setattr(build_mod, "load_abundance", lambda path=None: {})
 
-    def _run(**kw):
-        out = tmp_path / "out"
-        manifest = build_mod.build(COOS, session=FakeSession(handler_for(make_world(), **kw)), out_dir=out)
+    def _run(region=COOS, default_out=False, today=None, **kw):
+        out = build_mod.OUTPUT_DIR / region.slug if default_out else tmp_path / "out"
+        manifest = build_mod.build(
+            region, session=FakeSession(handler_for(make_world(), **kw)), out_dir=None if default_out else out, today=today
+        )
         load = lambda n: json.loads((out / n).read_text())  # noqa: E731
         return manifest, load
 
@@ -263,3 +273,85 @@ def test_wmu_layer_failure_falls_back_to_towns(run):
     catalog = load("catalog.json")
     border = next(p for p in catalog["properties"] if p["name"] == "Border Lot")
     assert set(border["wmu_units"]) == {"A", "B"}  # Colebrook is split by town table
+
+
+def test_radius_region_keeps_whole_towns_near_the_center(run):
+    """A towns-within-a-radius region (like the Concord area) clips to the chosen towns, across counties."""
+    from dataclasses import replace
+
+    west = make_world()[1]
+    c = west.centroid
+    # The test towns' centers are about 6 miles apart: a 3-mile radius keeps only the west town.
+    region = replace(COOS, slug="radius-test", counties=("33007", "33009"), center=(c.x, c.y), radius_miles=3.0)
+    manifest, load = run(region=region)
+    names = {p["name"] for p in load("catalog.json")["properties"]}
+    assert names == {"Test State Forest", "Connecticut Lakes Headwaters"}  # the east-town lots are outside
+    assert manifest["region"]["towns"] == [{"town": "Pittsburg", "miles": 0.0}]
+    assert manifest["region"]["radius_miles"] == 3.0
+    assert not any(s["name"] == "Census TIGERweb counties" for s in manifest["sources"])  # no county outline needed
+
+
+def test_radius_region_with_no_towns_stops(run):
+    from dataclasses import replace
+
+    from deerscout.http import SourceError
+
+    region = replace(COOS, slug="radius-test", center=(-71.0, 43.0), radius_miles=1.0)  # far from the test towns
+    with pytest.raises(SourceError):
+        run(region=region)
+
+
+def test_default_output_is_the_region_folder(run, tmp_path, monkeypatch):
+    monkeypatch.setattr(build_mod, "OUTPUT_DIR", tmp_path / "data")
+    run(default_out=True)
+    assert (tmp_path / "data" / "coos" / "catalog.json").exists()
+    assert not (tmp_path / "data" / "catalog.json").exists()  # never the shared top-level folder
+
+
+def _fake_abundance(monkeypatch):
+    src = {"title": "Test harvest summary", "retrieved": "2026-11-19"}
+    rows = {f"wmu:{w.lower()}": {"wmu": w, "level": "wmu", "buck_kill_per_sqmi": 1.5, "year": 2025, "source": src} for w in ("A", "B")}
+    monkeypatch.setattr(build_mod, "load_abundance", lambda path=None: rows)
+
+
+def _abundance_values(load):
+    catalog = load("catalog.json")
+    status = {p["id"]: p["access"]["status"] for p in catalog["properties"]}
+    return [
+        next(f["value"] for f in u["score"]["factors"] if f["key"] == "abundance")
+        for u in catalog["units"]
+        if status[u["property_id"]] != "prohibited"
+    ]
+
+
+def test_coos_scores_ignore_abundance_until_after_the_season(run, monkeypatch):
+    """Coos rankings mustn't shift while it's being hunted: abundance waits until Dec 9, 2026."""
+    from datetime import date
+
+    _fake_abundance(monkeypatch)
+    manifest, load = run(today=date(2026, 11, 18))
+    assert all(v is None for v in _abundance_values(load))
+    assert any("not used in this region's scores until 2026-12-09" in x for x in manifest["limitations"])
+
+    manifest, load = run(today=date(2026, 12, 14))  # first weekly refresh after archery closes
+    assert all(v is not None for v in _abundance_values(load))
+    assert not any("until 2026-12-09" in x for x in manifest["limitations"])
+
+
+def test_regions_without_a_hold_use_abundance_right_away(run, monkeypatch):
+    from dataclasses import replace
+    from datetime import date
+
+    _fake_abundance(monkeypatch)
+    manifest, load = run(region=replace(COOS, slug="no-hold", abundance_from=None), today=date(2026, 11, 18))
+    assert all(v is not None for v in _abundance_values(load))
+
+
+def test_abundance_hold_dates():
+    from datetime import date
+
+    from deerscout.config import CONCORD
+
+    assert build_mod.abundance_held(COOS, date(2026, 12, 8))
+    assert not build_mod.abundance_held(COOS, date(2026, 12, 9))
+    assert not build_mod.abundance_held(CONCORD, date(2026, 11, 18))  # the Concord area uses it as soon as it's loaded

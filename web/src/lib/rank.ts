@@ -50,7 +50,12 @@ export interface Ranked {
 
 export interface RankOutput {
   ranked: Ranked[];
-  excluded: { prohibited: number; unknown: number; closed: number };
+  excluded: { prohibited: number; unknown: number; closed: number; method: number };
+}
+
+/** False when the block is in a zone that doesn't allow this method (e.g. bow-only refuge, rifle chosen). */
+export function methodAllowed(unit: Unit, method: Method): boolean {
+  return !unit.method_limit || unit.method_limit.methods.includes(method);
 }
 
 /** Recompute a unit's quality score with custom factor weights (from Settings). */
@@ -96,7 +101,7 @@ export function bestPerProperty(ranked: Ranked[]): (Ranked & { more: number })[]
 export function rank(input: RankInput): RankOutput {
   const w = input.weights ?? DEFAULT_TRIP_WEIGHTS;
   const props = new Map(input.catalog.properties.map((p) => [p.id, p]));
-  const excluded = { prohibited: 0, unknown: 0, closed: 0 };
+  const excluded = { prohibited: 0, unknown: 0, closed: 0, method: 0 };
   const ranked: Ranked[] = [];
 
   for (const unit of input.catalog.units) {
@@ -109,6 +114,10 @@ export function rank(input: RankInput): RankOutput {
     }
     if (status === "unknown" && !input.includeUnknown) {
       excluded.unknown++;
+      continue;
+    }
+    if (!methodAllowed(unit, input.method)) {
+      excluded.method++;
       continue;
     }
     const season = seasonStatus(input.regs, input.ymd, input.method, unit.wmu.units);
@@ -147,4 +156,27 @@ export function rank(input: RankInput): RankOutput {
     return av - bv || b.trip - a.trip || (a.miles ?? 0) - (b.miles ?? 0);
   });
   return { ranked, excluded };
+}
+
+export interface AbundanceInfo {
+  buckKillPerSqMi: number;
+  where: string;
+  year: number | string | null;
+  /** e.g. "2024-2025 average" */
+  period: string | null;
+  source: { title?: string; url?: string; page?: string; retrieved?: string } | null;
+}
+
+/** The deer-abundance figure behind a block's score (Fish and Game buck kill per square mile), if loaded. */
+export function abundanceInfo(unit: Unit): AbundanceInfo | null {
+  const f = unit.score.factors.find((x) => x.key === "abundance");
+  const s = f?.signals as Record<string, unknown> | undefined;
+  if (!f || f.value === null || !s || typeof s.buck_kill_per_sqmi !== "number") return null;
+  return {
+    buckKillPerSqMi: s.buck_kill_per_sqmi,
+    where: typeof s.where === "string" ? s.where : "",
+    year: (s.year as number | string | undefined) ?? null,
+    period: typeof s.period === "string" ? s.period : null,
+    source: (s.source as AbundanceInfo["source"]) ?? null,
+  };
 }

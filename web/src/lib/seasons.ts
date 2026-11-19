@@ -69,6 +69,18 @@ export function seasonStatus(regs: Regulations, ymd: string, method: Method, uni
 }
 
 /** Next date on/after `ymd` when `method` opens in all of `units`, if any this season. */
+/** The earliest date after ymd that the method opens in any of the given WMUs, and which WMUs open then. */
+export function nextOpeningAny(regs: Regulations, ymd: string, method: Method, units: string[]): { date: string; units: string[] } | null {
+  let best: { date: string; units: string[] } | null = null;
+  for (const u of [...new Set(units)].sort()) {
+    const d = nextOpening(regs, ymd, method, [u]);
+    if (!d) continue;
+    if (!best || d < best.date) best = { date: d, units: [u] };
+    else if (d === best.date) best.units.push(u);
+  }
+  return best;
+}
+
 export function nextOpening(regs: Regulations, ymd: string, method: Method, units: string[]): string | null {
   const starts = regs.seasons
     .filter((s) => s.method === method && units.every((u) => regs.seasons.some((x) => x.method === method && x.units.includes(u))))
