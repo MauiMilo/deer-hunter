@@ -9,6 +9,11 @@ import { fileURLToPath } from "node:url";
 // fileURLToPath (not .pathname) so folder names with spaces work.
 const OUT = fileURLToPath(new URL("../out/", import.meta.url));
 const SKIP = new Set(["sw.js", "precache.json"]);
+// MapLibre 6 builds a few file addresses at runtime, so Next.js copies every .mjs file in its dist
+// folder into _next/static/media. The app only ever loads the worker (setWorkerUrl in MapView.tsx);
+// the development builds, the empty "shared" placeholders and a second copy of the main file are
+// never requested, so phones don't need to download them (about 5 MB).
+const UNUSED = /^_next\/static\/media\/maplibre-gl(-dev|-worker-dev|-shared|-shared-dev)?\.[^/]+\.mjs$/;
 
 function walk(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -24,6 +29,7 @@ for (const p of walk(OUT).sort()) {
   if (SKIP.has(rel)) continue;
   hash.update(rel);
   hash.update(readFileSync(p));
+  if (UNUSED.test(rel)) continue; // still counted in the version stamp, just not downloaded
   if (rel === "index.html") files.push("/");
   else if (rel.endsWith("/index.html")) files.push("/" + rel.slice(0, -"index.html".length));
   else files.push("/" + rel);

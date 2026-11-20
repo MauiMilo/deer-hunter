@@ -103,6 +103,10 @@ export default function MapView({
     (async () => {
       const ml = await import("maplibre-gl");
       if (disposed || !el.current) return;
+      // MapLibre 6 runs its background worker from a separate file and can't find it by itself inside
+      // a Next.js bundle. Written this way, Next.js ships the file with a content hash in its name and
+      // no query string, so the service worker's saved copy matches and the map still starts offline.
+      ml.setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString());
       const m = new ml.Map({
         container: el.current,
         style: style(),
@@ -124,7 +128,7 @@ export default function MapView({
         );
       }
       m.on("error", (e) => {
-        const msg = (e as { error?: Error }).error?.message ?? "";
+        const msg = e.error?.message ?? "";
         if (/properties|blocks/.test(msg)) setFailed("Property boundaries couldn't load.");
       });
       const report = () => {
