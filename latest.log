@@ -3,3 +3,5 @@ INFO starting USGS NLCD land cover (peak memory so far 215 MB)
 INFO finished USGS NLCD land cover (peak memory 361 MB)
 INFO starting Roads and trails (peak memory so far 361 MB)
 INFO DOT roads: 6717 segments in 3s
+ERROR OpenStreetMap failed after 327s: OpenStreetMap roads (incl. logging roads): gave up after 2 attempts (HTTP 504)
+INFO trails: 3208 lines in 7s
